@@ -116,9 +116,12 @@ The underlying scrubbing stays **on but silent**: it's protection, not UI.
 
 ## Known gaps / TODO
 
-- **Detector recall:** `redact.js` misses some common formats — notably Slack tokens
-  (`xoxb-…`), Stripe (`sk_live_`), and a few others — with `suspect=false`, so they'd
-  pass through. Adding those prefix detectors is the obvious next privacy win.
+- **Detector recall** has been broadened: `redact.js` now also masks Slack
+  (`xox[baprs]-`, `xapp-`), Stripe (`sk_/rk_live|test_`, `whsec_`), Google (`AIza…`),
+  GitLab (`glpat-`), npm (`npm_`), `github_pat_`, `sk-proj-`, and whole PEM private-key
+  blocks. Still best-effort — uncommon/custom secret formats can pass through; the
+  user's always-hide terms are the backstop. Add new prefixes to the `apiKey` detector
+  in `redact.js` (they inherit the prefix-preserving mask).
 - Some **dead code** remains in `app.js` (e.g. `decorateRedactions`, the `.rdx`
   reveal/tooltip handlers) and unused CSS for the removed banners — harmless, fine to
   clean up.

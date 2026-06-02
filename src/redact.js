@@ -93,9 +93,9 @@ function escapeRe(s) {
 // specific, higher-confidence) detectors win when matches overlap. The two
 // rules-driven detectors (userTerm, client) are folded in dynamically inside
 // redact() since they depend on the caller's rules; their definitions appear
-// here as static entries with an empty test() so the table documents the full,
-// frozen type order: apiKey, aws, jwt, envKv, hexSecret, entropy, userTerm,
-// client.
+// here as static entries with an empty test() so the table documents the full
+// type order: apiKey, aws, jwt, envKv, hexSecret, privateKey, entropy,
+// userTerm, client.
 
 const DETECTORS = [
   {
@@ -104,11 +104,24 @@ const DETECTORS = [
     confidence: 'high',
     test(s) {
       const out = [];
-      // OpenAI-style (sk-…, sk-ant-…) — letters/digits/hyphens/underscores,
-      // long enough to be a real key, not just the literal "sk-".
-      out.push(...scanRegex(s, /\bsk-(?:ant-)?[A-Za-z0-9_-]{16,}\b/g));
-      // GitHub tokens: ghp_, gho_, ghs_ (also ghu_, ghr_ same shape).
+      // OpenAI-style (sk-…, sk-ant-…, sk-proj-…) — long enough to be a real key.
+      out.push(...scanRegex(s, /\bsk-(?:ant-|proj-)?[A-Za-z0-9_-]{16,}\b/g));
+      // GitHub tokens: ghp_, gho_, ghs_, ghu_, ghr_ (PATs/OAuth); github_pat_.
       out.push(...scanRegex(s, /\bgh[pousr]_[A-Za-z0-9]{20,}\b/g));
+      out.push(...scanRegex(s, /\bgithub_pat_[A-Za-z0-9_]{20,}\b/g));
+      // Slack: bot/user/app/refresh tokens (xoxb-/xoxp-/xoxa-/xoxr-/xoxs-) and
+      // app-level tokens (xapp-). They embed hyphens, so allow them in the body.
+      out.push(...scanRegex(s, /\bxox[baprs]-[A-Za-z0-9-]{10,}\b/g));
+      out.push(...scanRegex(s, /\bxapp-[A-Za-z0-9-]{10,}\b/g));
+      // Stripe: secret/restricted live+test keys and webhook signing secrets.
+      out.push(...scanRegex(s, /\b(?:sk|rk)_(?:live|test)_[A-Za-z0-9]{16,}\b/g));
+      out.push(...scanRegex(s, /\bwhsec_[A-Za-z0-9]{16,}\b/g));
+      // Google API key.
+      out.push(...scanRegex(s, /\bAIza[0-9A-Za-z_-]{35}\b/g));
+      // GitLab personal access token.
+      out.push(...scanRegex(s, /\bglpat-[A-Za-z0-9_-]{20,}\b/g));
+      // npm automation token.
+      out.push(...scanRegex(s, /\bnpm_[A-Za-z0-9]{36}\b/g));
       return out;
     },
   },
@@ -214,6 +227,17 @@ const DETECTORS = [
         out.push(r);
       }
       return out;
+    },
+  },
+  {
+    type: 'privateKey',
+    label: 'looks like a private key',
+    confidence: 'high',
+    test(s) {
+      // A whole PEM private-key block: BEGIN…END, including the base64 body, so
+      // the key material is collapsed to a single mask rather than leaking the
+      // body while only the header matched.
+      return scanRegex(s, /-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----[\s\S]*?-----END [A-Z0-9 ]*PRIVATE KEY-----/g);
     },
   },
   {
@@ -328,10 +352,11 @@ function detectorsFor(rules) {
     },
   };
 
-  // Static detectors are DETECTORS[0..5] (apiKey, aws, jwt, envKv, hexSecret,
-  // entropy); the last two static entries are placeholders we replace with the
-  // bound detectors above, preserving the frozen order.
-  return [DETECTORS[0], DETECTORS[1], DETECTORS[2], DETECTORS[3], DETECTORS[4], DETECTORS[5], userTerm, client];
+  // All static (shape) detectors in declared order, then the rules-driven
+  // userTerm + client detectors bound above. Deriving the static list (rather
+  // than hardcoding indices) keeps this correct as detectors are added/removed.
+  const staticDetectors = DETECTORS.filter((d) => d.type !== 'userTerm' && d.type !== 'client');
+  return [...staticDetectors, userTerm, client];
 }
 
 // Stable, deterministic short id for a finding (no Date.now / randomness):
