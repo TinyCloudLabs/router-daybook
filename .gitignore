@@ -1,0 +1,11 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# local safety snapshots (created during edits)
+.backups/
+
+# personal interview transcripts — your own reflections, not code. Delete this
+# line if you deliberately want them version-controlled.
+interviews/

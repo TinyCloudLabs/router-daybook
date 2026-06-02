@@ -1,0 +1,1120 @@
+'use strict';
+
+const $ = (id) => document.getElementById(id);
+
+const els = {
+  date: $('date'),
+  stats: $('stats'),
+  sProjects: $('s-projects'),
+  sMessages: $('s-messages'),
+  sFiles: $('s-files'),
+  loading: $('loading'),
+  loadingText: $('loading-text'),
+  empty: $('empty'),
+  error: $('error'),
+  errorText: $('error-text'),
+  retry: $('retry'),
+  thinkStream: $('think-stream'),
+  eyebrow: $('eyebrow'),
+  connect: $('connect'),
+  connectInvite: $('connect-invite'),
+  connectHandle: $('connect-handle'),
+  connectJoin: $('connect-join'),
+  connectErr: $('connect-err'),
+  welcome: $('welcome'),
+  welcomeBody: $('welcome-body'),
+  welcomeBegin: $('welcome-begin'),
+  welcomeSkip: $('welcome-skip'),
+  interview: $('interview'),
+  ivProgress: $('iv-progress'),
+  ivQuestion: $('iv-question'),
+  ivHint: $('iv-hint'),
+  ivAnswer: $('iv-answer'),
+  ivBack: $('iv-back'),
+  ivNext: $('iv-next'),
+  ivMic: $('iv-mic'),
+  ivAnswerArea: $('iv-answer-area'),
+  ivType: $('iv-type'),
+  ivRedo: $('iv-redo'),
+  voiceShader: $('voice-shader'),
+  ivSkip: $('iv-skip'),
+  reflect: $('reflect'),
+  quiet: $('quiet'),
+  emptyStatus: $('empty-status'),
+  emptySub: $('empty-sub'),
+  emptyOpenScope: $('empty-open-scope'),
+  article: $('article'),
+  editor: $('editor'),
+  edit: $('edit'),
+  regen: $('regen'),
+  fb: $('fb'),
+  revise: $('revise'),
+  learned: $('learned'),
+  projlist: $('projlist'),
+  fntip: $('fntip'),
+  success: $('success'),
+  successSub: $('success-sub'),
+  openFeed: $('open-feed'),
+  actions: $('actions'),
+  postingAs: $('posting-as'),
+  skip: $('skip'),
+  post: $('post'),
+  openScope: $('open-scope'),
+  scope: $('scope'),
+  scopeBack: $('scope-back'),
+  scopeList: $('scope-list'),
+  scopeSave: $('scope-save'),
+  openLink: $('open-link'),
+  link: $('link'),
+  linkBack: $('link-back'),
+  hostIdle: $('host-idle'),
+  hostActive: $('host-active'),
+  permRecent: $('perm-recent'),
+  permRaw: $('perm-raw'),
+  hostStart: $('host-start'),
+  hostCode: $('host-code'),
+  hostStatus: $('host-status'),
+  hostStop: $('host-stop'),
+  peerIdle: $('peer-idle'),
+  peerActive: $('peer-active'),
+  peerCode: $('peer-code'),
+  peerConnect: $('peer-connect'),
+  peerErr: $('peer-err'),
+  peerStatus: $('peer-status'),
+  peerPullRecent: $('peer-pull-recent'),
+  peerPullRaw: $('peer-pull-raw'),
+  peerResult: $('peer-result'),
+  peerDisconnect: $('peer-disconnect'),
+  tabCode: $('tab-code'),
+  tabSsh: $('tab-ssh'),
+  peerPaneCode: $('peer-pane-code'),
+  peerPaneSsh: $('peer-pane-ssh'),
+  peerSsh: $('peer-ssh'),
+  peerSshConnect: $('peer-ssh-connect'),
+  sshSaved: $('ssh-saved'),
+  sshSavedList: $('ssh-saved-list'),
+};
+
+let ctx = { digest: '', name: 'James', dateLabel: 'today', server: '' };
+let cur = { text: '', generated: '', fnMap: {}, editing: false };
+let mode = 'digest';            // 'digest' | 'intro'
+
+// last scope:preview for the day — chips/counts bind to its postFindings (I2).
+let preview = null;             // { post, headline, postFindings, readFiles, excludedCount, held }
+let findingById = {};           // postFindings keyed by id, for tooltips + local reveal
+let scopeState = null;          // last scope:get payload (for the #scope manager)
+let scopeReturnView = 'reflect';// where ← back returns to from #scope
+
+const SUP = { '¹': 1, '²': 2, '³': 3, '⁴': 4, '⁵': 5, '⁶': 6, '⁷': 7, '⁸': 8, '⁹': 9 };
+
+function setView(view) {
+  for (const k of ['connect', 'welcome', 'interview', 'loading', 'empty', 'error', 'reflect', 'success', 'link', 'scope']) {
+    els[k].hidden = k !== view;
+  }
+  els.actions.hidden = view !== 'reflect';
+  const card = els[view];
+  if (card) { card.classList.remove('fade'); void card.offsetWidth; card.classList.add('fade'); }
+}
+
+const hostLabel = (url) => { try { return new URL(url).host; } catch { return url || ''; } };
+
+// Undo toast — exclusions & rule-adds ONLY (never inclusion; you can't un-send).
+let toastTimer = 0, toastEl = null;
+function showToast(text, onUndo) {
+  if (toastEl) toastEl.remove();
+  clearTimeout(toastTimer);
+  toastEl = document.createElement('div');
+  toastEl.className = 'toast';
+  const span = document.createElement('span');
+  span.textContent = text;
+  const btn = document.createElement('button');
+  btn.className = 'toast-undo';
+  btn.textContent = 'undo';
+  btn.addEventListener('click', async () => {
+    clearTimeout(toastTimer);
+    if (toastEl) { toastEl.remove(); toastEl = null; }
+    try { await onUndo(); } catch { /* */ }
+  });
+  toastEl.appendChild(span); toastEl.appendChild(btn);
+  document.body.appendChild(toastEl);
+  toastTimer = setTimeout(() => { if (toastEl) { toastEl.remove(); toastEl = null; } }, 6000);
+}
+const escapeHtml = (s) => String(s).replace(/[&<>"]/g, (c) => (
+  { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]
+));
+
+// ── markdown rendering (native) with hoverable footnote markers ────────────
+const SUP_RE = /[¹²³⁴⁵⁶⁷⁸⁹]/g;
+
+function mdInline(s) {
+  return s
+    .replace(/`([^`]+)`/g, '<code>$1</code>')
+    .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+    .replace(/(^|[^*])\*([^*\n]+)\*/g, '$1<em>$2</em>')
+    .replace(/\[([^\]]+)\]\(([^)\s]+)\)/g, '<span class="md-link" title="$2">$1</span>');
+}
+
+// A small, safe markdown → HTML pass (escapes first). Handles headings,
+// bold/italic/code/links, and unordered/ordered lists.
+function renderMarkdown(raw) {
+  const lines = escapeHtml(raw).split('\n');
+  const out = [];
+  let para = [];
+  let list = null;
+  const flushPara = () => { if (para.length) { out.push('<p>' + mdInline(para.join(' ')) + '</p>'); para = []; } };
+  const flushList = () => {
+    if (list) { out.push(`<${list.type}>` + list.items.map((i) => `<li>${mdInline(i)}</li>`).join('') + `</${list.type}>`); list = null; }
+  };
+  const flush = () => { flushPara(); flushList(); };
+
+  for (const line of lines) {
+    const t = line.trim();
+    let m;
+    if (!t) { flush(); }
+    else if ((m = t.match(/^(#{1,6})\s+(.*)$/))) { flush(); const lvl = Math.min(m[1].length + 1, 4); out.push(`<h${lvl}>${mdInline(m[2])}</h${lvl}>`); }
+    else if (/^(---+|—)$/.test(t)) { flush(); out.push('<hr>'); }
+    else if ((m = t.match(/^[-*]\s+(.*)$/))) { flushPara(); if (!list || list.type !== 'ul') { flushList(); list = { type: 'ul', items: [] }; } list.items.push(m[1]); }
+    else if ((m = t.match(/^\d+\.\s+(.*)$/))) { flushPara(); if (!list || list.type !== 'ol') { flushList(); list = { type: 'ol', items: [] }; } list.items.push(m[1]); }
+    else { flushList(); para.push(t); }
+  }
+  flush();
+  return out.join('');
+}
+
+function renderArticle() {
+  const text = cur.text || '';
+  const lines = text.split('\n');
+
+  // The digest carries a kicker + headline + Sources footer that aren't
+  // markdown; peel those off and markdown-render the body between them.
+  let kicker = '', headline = '', rest = text;
+  if ((lines[0] || '').startsWith('Router digest')) {
+    kicker = lines[0];
+    headline = (lines[1] || '').trim();
+    rest = lines.slice(2).join('\n');
+  }
+  let sources = '';
+  const sIdx = rest.indexOf('—\nSources');
+  if (sIdx >= 0) { sources = rest.slice(sIdx); rest = rest.slice(0, sIdx); }
+
+  let html = '';
+  if (kicker) html += `<div class="kicker">${escapeHtml(kicker)}</div>`;
+  if (headline) html += `<div class="headline">${escapeHtml(headline)}</div>`;
+  html += renderMarkdown(rest);
+  if (sources) html += `<div class="sources">${escapeHtml(sources).replace(/\n/g, '<br>')}</div>`;
+
+  // Wrap superscript markers as hoverable citations.
+  html = html.replace(SUP_RE, (ch) => {
+    const n = SUP[ch];
+    if (!cur.fnMap[n]) return ch;
+    return `<sup class="fn" data-n="${n}">${ch}</sup>`;
+  });
+
+  els.article.innerHTML = html;
+}
+
+// Map each postFinding onto its visible maskedAs string in the article HTML.
+// Longest masks first so shorter ones don't shadow them. Each match becomes a
+// .rdx chip tagged by confidence/type so colour follows the spec (auto=grey,
+// rule/client=accent, suggested=dashed). data-fid keys the tooltip + reveal.
+function decorateRedactions(html) {
+  const findings = (preview && preview.postFindings) || [];
+  if (!findings.length) return html;
+  // Suggested (low-confidence) findings aren't block-masked in `post`, so they
+  // appear as their original text — match on that; confident findings match
+  // their maskedAs (the visible block/abstraction).
+  const target = (f) => (f.confidence === 'low' ? (f.maskedAs || f.original) : f.maskedAs) || '';
+  const byMask = findings.slice().sort((a, b) => target(b).length - target(a).length);
+  for (const f of byMask) {
+    const mask = target(f);
+    if (!mask) continue;
+    const esc = escapeHtml(mask);
+    const cls = f.confidence === 'low' ? 'rdx-suggested'
+      : (f.type === 'userTerm' || f.type === 'client') ? (f.type === 'client' ? 'rdx-client' : 'rdx-rule')
+        : 'rdx-auto';
+    const chip = `<span class="rdx ${cls}" data-fid="${escapeHtml(f.id)}">${esc}</span>`;
+    // replace first un-wrapped occurrence (avoid re-wrapping already-chipped text)
+    const idx = findMaskIndex(html, esc);
+    if (idx >= 0) html = html.slice(0, idx) + chip + html.slice(idx + esc.length);
+  }
+  return html;
+}
+function findMaskIndex(html, esc) {
+  let from = 0;
+  while (true) {
+    const i = html.indexOf(esc, from);
+    if (i < 0) return -1;
+    // skip if inside an existing data-fid="..." attribute region (already chipped)
+    const before = html.lastIndexOf('<span class="rdx', i);
+    const close = before >= 0 ? html.indexOf('</span>', before) : -1;
+    if (before >= 0 && close >= 0 && i < close && i > before) { from = i + esc.length; continue; }
+    return i;
+  }
+}
+
+function showTip(target) {
+  const n = target.getAttribute('data-n');
+  const fn = cur.fnMap[n];
+  if (!fn) return;
+  els.fntip.innerHTML = `
+    <div class="t-head">@${escapeHtml(fn.handle)} · ${escapeHtml(fn.date)}</div>
+    <div class="t-quote">“${escapeHtml(fn.quote)}”</div>
+    ${fn.excerpt ? `<div class="t-ex">${escapeHtml(fn.excerpt)}</div>` : ''}
+  `;
+  els.fntip.hidden = false;
+  const r = target.getBoundingClientRect();
+  const tip = els.fntip;
+  const top = r.top - tip.offsetHeight - 8;
+  let left = r.left - tip.offsetWidth / 2;
+  left = Math.max(12, Math.min(left, window.innerWidth - tip.offsetWidth - 12));
+  tip.style.top = (top < 8 ? r.bottom + 8 : top) + 'px';
+  tip.style.left = left + 'px';
+}
+function hideTip() { els.fntip.hidden = true; els.fntip.classList.remove('rdx-tip'); }
+
+// Redaction chip tooltip (reuses .fntip): conceal-by-default, 1Password-style
+// explicit local reveal. Stays interactive so reveal/always-hide are clickable.
+function showRdxTip(target) {
+  const fid = target.getAttribute('data-fid');
+  const f = findingById[fid];
+  if (!f) return;
+  const isRule = f.type === 'userTerm';
+  const isClient = f.type === 'client';
+  const isSuggested = f.confidence === 'low';
+  let head, body;
+  if (isClient) {
+    head = 'hidden by your rule';
+    body = `Shown to the cohort as “${escapeHtml(f.maskedAs)}”.`;
+  } else if (isRule) {
+    head = 'hidden by your rule';
+    body = 'Shown to the cohort as a masked term.';
+  } else if (isSuggested) {
+    head = 'I think this is a secret';
+    body = 'Not auto-hidden — detection is best-effort.';
+  } else {
+    head = 'hidden — looks like a secret';
+    body = 'Hidden before any text left your machine.';
+  }
+  const reveal = isSuggested
+    ? `<span class="t-link" data-act="hide" data-fid="${escapeHtml(fid)}">hide it ▸</span> &nbsp;·&nbsp; <span class="t-link" data-act="dismiss" data-fid="${escapeHtml(fid)}">not a secret</span>`
+    : isRule || isClient
+      ? `<span class="t-link" data-act="reveal" data-fid="${escapeHtml(fid)}">reveal to check ▸</span>`
+      : `<span class="t-link" data-act="reveal" data-fid="${escapeHtml(fid)}">reveal to check ▸</span> &nbsp;·&nbsp; <span class="t-link" data-act="hide" data-fid="${escapeHtml(fid)}">always hide ▸</span>`;
+  els.fntip.innerHTML = `
+    <div class="t-head">${escapeHtml(head)}</div>
+    ${f.source ? `<div class="t-ex">from ${escapeHtml(f.source)}</div>` : ''}
+    <div class="t-quote">${escapeHtml(body)}</div>
+    <div class="t-reveal" data-rev="${escapeHtml(fid)}"><span class="t-clear" hidden></span>${reveal}</div>
+  `;
+  els.fntip.hidden = false;
+  els.fntip.classList.add('rdx-tip');
+  positionTip(target);
+}
+function positionTip(target) {
+  const r = target.getBoundingClientRect();
+  const tip = els.fntip;
+  const top = r.top - tip.offsetHeight - 8;
+  let left = r.left - tip.offsetWidth / 2;
+  left = Math.max(12, Math.min(left, window.innerWidth - tip.offsetWidth - 12));
+  tip.style.top = (top < 8 ? r.bottom + 8 : top) + 'px';
+  tip.style.left = left + 'px';
+}
+
+els.article.addEventListener('mouseover', (e) => {
+  const fn = e.target.closest('.fn');
+  if (fn) return showTip(fn);
+  const rdx = e.target.closest('.rdx');
+  if (rdx) showRdxTip(rdx);
+});
+els.article.addEventListener('mouseout', (e) => {
+  if (e.target.closest('.fn')) return hideTip();
+  // redaction tips persist (interactive reveal); they close on mouseleave of the tip
+});
+els.fntip.addEventListener('mouseleave', () => { if (els.fntip.classList.contains('rdx-tip')) hideTip(); });
+
+// Local-only reveal / always-hide, driven from the redaction tooltip. Reveal
+// NEVER re-enters the outgoing string and is transient (clears on tip close).
+els.fntip.addEventListener('click', async (e) => {
+  const link = e.target.closest('.t-link');
+  if (!link) return;
+  const act = link.getAttribute('data-act');
+  const fid = link.getAttribute('data-fid');
+  const f = findingById[fid];
+  if (!f) return;
+  if (act === 'dismiss') {
+    // "not a secret" on a suggested chip just closes the tip — it must NOT
+    // reveal the masked content (that's what `reveal` is for). A suggested
+    // finding is best-effort; dismissing leaves the visible draft as-is.
+    hideTip();
+  } else if (act === 'reveal') {
+    try {
+      const r = await window.daybook.redactionReveal({ findingId: fid });
+      const slot = els.fntip.querySelector('.t-clear');
+      if (slot && r && typeof r.original === 'string') { slot.textContent = r.original; slot.hidden = false; }
+    } catch { /* local reveal failed — leave concealed */ }
+  } else if (act === 'hide') {
+    // promote a suggested/auto finding to a standing always-hide rule
+    const term = f.original || f.maskedAs;
+    try {
+      const r = await window.daybook.redactionRule({ op: 'add', term });
+      hideTip();
+      const idx = (r && r.hide ? r.hide.lastIndexOf(term) : -1);
+      showToast('rule added — undo', async () => {
+        if (idx >= 0) await window.daybook.redactionRule({ op: 'remove', index: idx });
+      });
+    } catch { /* */ }
+  }
+});
+
+// ── edit toggle ────────────────────────────────────────────────────────────
+function toggleEdit() {
+  if (!cur.editing) {
+    els.editor.value = cur.text;
+    els.editor.hidden = false;
+    els.article.hidden = true;
+    els.edit.textContent = '✓ done';
+    cur.editing = true;
+    els.editor.focus();
+  } else {
+    cur.text = els.editor.value;
+    renderArticle();
+    els.editor.hidden = true;
+    els.article.hidden = false;
+    els.edit.textContent = '✎ edit';
+    cur.editing = false;
+  }
+}
+const currentText = () => (cur.editing ? els.editor.value : cur.text);
+
+// ── live "thinking" view: a token counter that climbs as the model works ───
+// claude -p flushes its stream-json mostly at the end, so the real count lands
+// late. We climb by elapsed time during the wait and let the real count (when
+// it arrives) raise the floor and set the finish — so it animates throughout.
+let thinkUnsub = null;
+let thinkRaf = 0, thinkActive = false, thinkT0 = 0, thinkDisplayed = 0, thinkReal = 0;
+const TOKEN_RATE = 34; // approx tokens/sec for the live climb
+
+function thinkLoop(ts) {
+  if (!thinkActive) return;
+  if (!thinkT0) thinkT0 = ts;
+  const elapsed = (ts - thinkT0) / 1000;
+  // monotonic: climb by time, but never below a real count we've observed
+  thinkDisplayed = Math.max(thinkDisplayed, elapsed * TOKEN_RATE, thinkReal);
+  const n = Math.round(thinkDisplayed);
+  els.thinkStream.innerHTML = `${n.toLocaleString()}<span class="unit">tokens</span>`;
+  thinkRaf = requestAnimationFrame(thinkLoop);
+}
+
+function startThinking(label) {
+  els.loadingText.textContent = label;
+  thinkActive = true; thinkT0 = 0; thinkDisplayed = 0; thinkReal = 0;
+  els.thinkStream.innerHTML = `0<span class="unit">tokens</span>`;
+  els.thinkStream.hidden = false;
+  setView('loading');
+  thinkUnsub = window.daybook.onGenStream(({ tokens }) => {
+    if (typeof tokens === 'number' && tokens > thinkReal) thinkReal = tokens;
+  });
+  thinkRaf = requestAnimationFrame(thinkLoop);
+}
+function stopThinking() {
+  thinkActive = false;
+  if (thinkUnsub) { thinkUnsub(); thinkUnsub = null; }
+  cancelAnimationFrame(thinkRaf);
+  els.thinkStream.hidden = true;
+}
+
+// ── boot: first run → introduce from history; else → daily digest ──────────
+async function boot() {
+  setView('loading');
+  els.loadingText.textContent = 'Getting set up…';
+  let b;
+  try { b = await window.daybook.bootstrap(); } catch (e) { return fail(e.message || String(e)); }
+  ctx.name = b.name || 'James';
+  ctx.server = b.server || '';
+  els.postingAs.innerHTML = `posting to <b>${hostLabel(b.server)}</b>`;
+  if (!b.hasKey) return showConnect(); // no identity yet — join the Router first
+  if (b.introduced) return run();
+  // Pre-fetch the intro context + first question now, while they read the
+  // welcome, so clicking Begin is instant.
+  introPrefetch = window.daybook.introStart().catch((e) => ({ error: e.message || String(e) }));
+  window.daybook.warmWhisper(); // load the transcription model now, so speaking is fast later
+  showWelcome();
+}
+
+// No identity yet: join the Router in-app (generate → register → save rc).
+function showConnect() {
+  els.connectErr.hidden = true;
+  setView('connect');
+  setTimeout(() => els.connectInvite.focus(), 0);
+}
+async function doJoin() {
+  const invite = els.connectInvite.value.trim();
+  const handle = els.connectHandle.value.trim().replace(/^@/, '');
+  els.connectErr.hidden = true;
+  if (!handle) { els.connectErr.textContent = 'Choose a handle.'; els.connectErr.hidden = false; return; }
+  els.connectJoin.disabled = true; els.connectJoin.textContent = 'Joining…';
+  try {
+    await window.daybook.join({ invite, handle });
+    boot(); // re-bootstrap — now that we have a key, proceed to the welcome
+  } catch (e) {
+    els.connectErr.textContent = e.message || String(e);
+    els.connectErr.hidden = false;
+  } finally {
+    els.connectJoin.disabled = false; els.connectJoin.textContent = 'Join the Router →';
+  }
+}
+
+const MAX_TURNS = 5;
+let ivTranscript = [];   // [{ q, hint, a }]
+let ivIndex = 0;
+let ivProjectCount = 0;
+let introPrefetch = null; // promise of intro-start, warmed during the welcome
+
+// First run: one natural welcome note, grounded in your recent work. Shows
+// instantly with a soft placeholder; the full message fills in a beat later.
+function showWelcome() {
+  const fallback =
+    'The Router is the cohort’s shared notebook — a live feed where the builders around you post what they’re making, wrestling with, and looking for. You’ll answer a few questions about your work, and they become an introduction you approve before anything posts.';
+  els.welcomeBody.innerHTML = '<span class="shimmer">reading your work…</span>';
+  setView('welcome');
+  window.daybook.welcomeMessage()
+    .then((r) => { els.welcomeBody.textContent = (r && r.message) ? r.message : fallback; })
+    .catch(() => { els.welcomeBody.textContent = fallback; });
+}
+
+// Dynamic, archive-style interview: an opening question, then real follow-ups,
+// all generated through the Claude Code SDK (claude -p).
+async function startInterview() {
+  mode = 'intro';
+  ivTranscript = [];
+  ivIndex = 0;
+  setView('loading');
+  els.loadingText.textContent = 'Reading your recent work…';
+  try {
+    const q = await (introPrefetch || window.daybook.introStart());
+    introPrefetch = null;
+    if (q && q.error) throw new Error(q.error);
+    ivProjectCount = q.projectCount || 0;
+    if (!q.question) return buildIntro();
+    ivTranscript.push({ q: q.question, hint: q.hint || '', a: '' });
+    showQuestion(0);
+    setView('interview');
+  } catch (e) { fail(e.message || String(e)); }
+}
+
+function showQuestion(i) {
+  if (answerState === 'recording') stopRecording();
+  const item = ivTranscript[i];
+  els.ivProgress.textContent = `Question ${i + 1}`;
+  els.ivQuestion.textContent = item.q;
+  els.ivHint.textContent = item.hint || '';
+  els.ivHint.hidden = !item.hint;
+  els.ivAnswer.value = item.a || '';
+  setAnswer(item.a && item.a.trim() ? 'text' : 'speak'); // speech-first by default
+  els.ivBack.style.visibility = i === 0 ? 'hidden' : 'visible';
+  // We don't know if this is the last question until the model says done, but
+  // offer to wrap up from the last turn onward.
+  els.ivNext.textContent = i >= MAX_TURNS - 1 ? 'Write my introduction →' : 'Next →';
+  if (answerState === 'text') setTimeout(() => els.ivAnswer.focus(), 0);
+}
+
+function ivStore() { if (ivTranscript[ivIndex]) ivTranscript[ivIndex].a = els.ivAnswer.value; }
+
+let advancing = false; // guard so stop-to-submit + the Next button can't double-fire
+async function ivNext() {
+  if (advancing) return;
+  advancing = true;
+  try {
+    await finishVoiceInput(); // capture any in-flight recording/transcription — never lose it
+    ivStore();
+    // Going forward from an already-seen question?
+    if (ivIndex < ivTranscript.length - 1) { ivIndex++; return showQuestion(ivIndex); }
+    if (ivIndex >= MAX_TURNS - 1) return buildIntro();
+
+    // Ask the model for a natural follow-up — show the token count climb live.
+    startThinking('Thinking of the next question…');
+    const res = await window.daybook.introNext({ transcript: ivTranscript.map(({ q, a }) => ({ q, a })) });
+    stopThinking();
+    if (res.done || !res.question) return buildIntro();
+    ivTranscript.push({ q: res.question, hint: res.hint || '', a: '' });
+    ivIndex++;
+    showQuestion(ivIndex);
+    setView('interview');
+  } catch (e) {
+    stopThinking();
+    fail(e.message || String(e));
+  } finally {
+    advancing = false;
+  }
+}
+
+async function ivBack() {
+  await finishVoiceInput();
+  ivStore();
+  if (ivIndex > 0) { ivIndex--; showQuestion(ivIndex); }
+}
+
+// ── voice-reactive shader: a field that moves with your voice while recording ─
+const VOICE_VERT = 'attribute vec2 p; void main(){ gl_Position = vec4(p, 0.0, 1.0); }';
+const VOICE_FRAG = `precision highp float;
+uniform vec2 u_res; uniform float u_time; uniform float u_level;
+float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+float noise(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);
+  return mix(mix(hash(i),hash(i+vec2(1,0)),f.x), mix(hash(i+vec2(0,1)),hash(i+vec2(1,1)),f.x), f.y); }
+float fbm(vec2 p){ float v=0.0, a=0.5; for(int i=0;i<4;i++){ v+=a*noise(p); p*=2.0; a*=0.5; } return v; }
+void main(){
+  vec2 uv = (gl_FragCoord.xy - 0.5*u_res) / u_res.y;
+  float lvl = u_level;
+  float t = u_time * 0.25;
+  vec2 q = uv * 2.4;
+  q += 0.6 * vec2(fbm(q + t), fbm(q - t + 3.0));
+  float n = fbm(q + lvl * 2.2);
+  float r = length(uv);
+  float pulse = sin(r * 12.0 - u_time * 3.5 - lvl * 9.0) * 0.5 + 0.5;
+  float intensity = (n * 0.72 + pulse * 0.28) * (0.18 + lvl * 1.7);
+  vec3 base = vec3(0.09, 0.06, 0.16);
+  vec3 accent = vec3(0.55, 0.42, 1.0);
+  vec3 col = base + accent * intensity;
+  float alpha = clamp(intensity * 1.25, 0.0, 0.82);
+  gl_FragColor = vec4(col, alpha);
+}`;
+
+let shader = null;
+
+function compileShader(gl, type, src) {
+  const s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) return null;
+  return s;
+}
+
+function startVoiceShader(stream) {
+  const canvas = els.voiceShader;
+  const gl = canvas.getContext('webgl', { premultipliedAlpha: false, alpha: true });
+  if (!gl) return;
+  const vs = compileShader(gl, gl.VERTEX_SHADER, VOICE_VERT);
+  const fs = compileShader(gl, gl.FRAGMENT_SHADER, VOICE_FRAG);
+  if (!vs || !fs) return;
+  const prog = gl.createProgram();
+  gl.attachShader(prog, vs); gl.attachShader(prog, fs); gl.linkProgram(prog);
+  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) return;
+  gl.useProgram(prog);
+
+  const buf = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, buf);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1, -1, 1, -1, -1, 1, -1, 1, 1, -1, 1, 1]), gl.STATIC_DRAW);
+  const loc = gl.getAttribLocation(prog, 'p');
+  gl.enableVertexAttribArray(loc);
+  gl.vertexAttribPointer(loc, 2, gl.FLOAT, false, 0, 0);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+  const u = {
+    res: gl.getUniformLocation(prog, 'u_res'),
+    time: gl.getUniformLocation(prog, 'u_time'),
+    level: gl.getUniformLocation(prog, 'u_level'),
+  };
+
+  // audio analysis off the same mic stream (no playback)
+  const audioCtx = new AudioContext();
+  const src = audioCtx.createMediaStreamSource(stream);
+  const analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 512; analyser.smoothingTimeConstant = 0.8;
+  src.connect(analyser);
+  const data = new Uint8Array(analyser.frequencyBinCount);
+
+  function resize() {
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = Math.max(1, Math.floor(canvas.clientWidth * dpr));
+    const h = Math.max(1, Math.floor(canvas.clientHeight * dpr));
+    if (canvas.width !== w || canvas.height !== h) { canvas.width = w; canvas.height = h; }
+    gl.viewport(0, 0, canvas.width, canvas.height);
+  }
+
+  els.voiceShader.hidden = false;
+  // Reflow so the fade-in transition runs, then light up the whole app.
+  void els.voiceShader.offsetWidth;
+  els.voiceShader.classList.add('live');
+  document.body.classList.add('recording'); // UI fades back, field reads across the app
+  const t0 = performance.now();
+  let level = 0;
+  shader = { audioCtx, raf: 0 };
+  const loop = () => {
+    resize();
+    analyser.getByteFrequencyData(data);
+    let sum = 0; for (let i = 0; i < data.length; i++) sum += data[i] * data[i];
+    const rms = Math.sqrt(sum / data.length) / 255;
+    level += (rms - level) * 0.3;
+    gl.clearColor(0, 0, 0, 0);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.uniform2f(u.res, canvas.width, canvas.height);
+    gl.uniform1f(u.time, (performance.now() - t0) / 1000);
+    gl.uniform1f(u.level, Math.min(level * 2.4, 1.0));
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    shader.raf = requestAnimationFrame(loop);
+  };
+  shader.raf = requestAnimationFrame(loop);
+}
+
+function stopVoiceShader() {
+  if (!shader) return;
+  cancelAnimationFrame(shader.raf);
+  try { shader.audioCtx.close(); } catch { /* */ }
+  shader = null;
+  els.voiceShader.classList.remove('live');
+  document.body.classList.remove('recording'); // bring the UI back
+  setTimeout(() => { els.voiceShader.hidden = true; }, 450);
+}
+
+// ── voice answer (speech-first): record → local MLX Whisper → fill box ─────
+// States: speak (Speak CTA) | recording | transcribing | text (textarea shown)
+let answerState = 'speak';
+let micStream = null, micRecorder = null, micChunks = [];
+let transcribeDone = null, transcribeResolve = null;
+
+function blobToBase64(blob) {
+  return new Promise((resolve) => {
+    const r = new FileReader();
+    r.onloadend = () => resolve(String(r.result).split(',')[1] || '');
+    r.readAsDataURL(blob);
+  });
+}
+
+function renderAnswer() {
+  const a = answerState;
+  els.ivMic.hidden = (a === 'text');
+  els.ivType.hidden = (a !== 'speak');
+  els.ivAnswer.hidden = (a !== 'text');
+  els.ivRedo.hidden = (a !== 'text');
+  els.ivMic.classList.toggle('recording', a === 'recording');
+  els.ivMic.disabled = (a === 'transcribing');
+  els.ivMic.textContent = a === 'recording' ? '■ Stop & continue →'
+    : a === 'transcribing' ? 'Transcribing…' : '🎙 Speak your answer';
+  els.ivAnswerArea.classList.toggle('mode-text', a === 'text');
+}
+function setAnswer(a) { answerState = a; renderAnswer(); }
+
+async function startRecording() {
+  try { micStream = await navigator.mediaDevices.getUserMedia({ audio: true }); }
+  catch {
+    els.ivHint.hidden = false; els.ivHint.textContent = 'Microphone unavailable — type instead.';
+    setAnswer('text'); els.ivAnswer.focus(); return;
+  }
+  const base = els.ivAnswer.value.trim();
+  micChunks = [];
+  transcribeDone = new Promise((r) => { transcribeResolve = r; });
+  micRecorder = new MediaRecorder(micStream);
+  micRecorder.ondataavailable = (e) => { if (e.data && e.data.size) micChunks.push(e.data); };
+  micRecorder.onstop = async () => {
+    stopVoiceShader();
+    micStream.getTracks().forEach((t) => t.stop());
+    setAnswer('transcribing');
+    let text = '';
+    try {
+      const blob = new Blob(micChunks, { type: micRecorder.mimeType || 'audio/webm' });
+      text = await window.daybook.transcribeAudio({ base64: await blobToBase64(blob) });
+    } catch { /* keep what we have */ }
+    els.ivAnswer.value = text ? (base ? base + ' ' + text : text) : base;
+    setAnswer('text');
+    els.ivAnswer.focus();
+    const done = transcribeResolve; transcribeResolve = null; transcribeDone = null;
+    if (done) done();
+  };
+  micRecorder.start();
+  startVoiceShader(micStream);
+  setAnswer('recording');
+}
+
+function stopRecording() {
+  if (micRecorder && answerState === 'recording') { try { micRecorder.stop(); } catch { /* */ } }
+}
+
+function micToggle() {
+  if (answerState === 'recording') ivNext();   // stop = transcribe + submit
+  else if (answerState !== 'transcribing') startRecording();
+}
+
+// Never advance with an answer still recording or transcribing — wait for it.
+async function finishVoiceInput() {
+  if (answerState === 'recording') stopRecording();
+  if (transcribeDone) await transcribeDone;
+}
+
+// Write the full intro from the interview transcript (connections from answers).
+async function buildIntro() {
+  mode = 'intro';
+  await finishVoiceInput(); // don't write the intro while an answer is still transcribing
+  ivStore();
+  els.post.textContent = 'Post introduction →';
+  els.skip.textContent = 'Skip for now';
+  els.fb.placeholder = 'e.g. lead with the video work · cut the background section · shorter';
+  startThinking('Writing your introduction…');
+  try {
+    const res = await window.daybook.introWrite({ transcript: ivTranscript.map(({ q, a }) => ({ q, a })) });
+    stopThinking();
+    applyResult(res);
+    els.quiet.hidden = true;
+    els.eyebrow.textContent = ivProjectCount
+      ? `Your introduction · from ${ivProjectCount} projects`
+      : 'Your introduction';
+  } catch (e) { stopThinking(); fail(e.message || String(e)); }
+}
+
+// ── flow ───────────────────────────────────────────────────────────────────
+async function run() {
+  mode = 'digest';
+  els.eyebrow.textContent = 'Cohort digest';
+  els.post.textContent = 'Post to cohort →';
+  els.skip.textContent = 'Skip today';
+  els.fb.placeholder = 'e.g. too wordy, just the facts · drop the Insight line · cut the @-mention · less about the plumbing';
+  setView('loading');
+  els.loadingText.textContent = 'Reading today’s sessions…';
+  let collected;
+  try {
+    collected = await window.daybook.collect();
+  } catch (e) { return fail(e.message || String(e)); }
+
+  const { stats, hasActivity, digest, name, server } = collected;
+  ctx = { digest, name: name || 'James', dateLabel: stats.date, server: server || '' };
+
+  els.date.textContent = stats.date;
+  els.sProjects.textContent = stats.projectCount;
+  els.sMessages.textContent = stats.messageCount;
+  els.sFiles.textContent = stats.fileCount;
+  els.stats.hidden = false;
+  els.postingAs.innerHTML = `posting to <b>${hostLabel(server)}</b>`;
+
+  els.projlist.innerHTML = '';
+  for (const p of stats.projects) {
+    const pill = document.createElement('span');
+    pill.className = 'pill';
+    pill.innerHTML = `<b>${escapeHtml(p.name)}</b> · ${p.messages} msg`;
+    els.projlist.appendChild(pill);
+  }
+  // linked machines folded into today's digest over SSH
+  for (const peer of (collected.peers || [])) {
+    if (!(peer.projectCount > 0)) continue;
+    const pill = document.createElement('span');
+    pill.className = 'pill pill-peer';
+    pill.title = `Linked over SSH · ${(peer.projects || []).join(', ')}`;
+    pill.innerHTML = `⛓ <b>${escapeHtml(peer.target)}</b> · ${peer.projectCount} project${peer.projectCount === 1 ? '' : 's'}`;
+    els.projlist.appendChild(pill);
+  }
+
+  if (!hasActivity) return showEmpty(collected);
+  await generate();
+}
+
+// The empty state. Distinguishes a genuinely quiet day from zero-scope (repos
+// were active but none are granted) — the latter gets the §6 zero-scope copy
+// and a one-click "Open Scope →" affordance.
+function showEmpty(collected) {
+  const excluded = collected && typeof collected.excludedCount === 'number' ? collected.excludedCount : 0;
+  if (excluded > 0) {
+    els.emptyStatus.textContent = 'Quiet scope — no repos granted yet.';
+    els.emptySub.textContent =
+      'Nothing to post means nothing leaves. Open Scope to let the Router see a repo when you\'re ready.';
+    els.emptyOpenScope.hidden = false;
+  } else {
+    els.emptyStatus.textContent = 'No Claude or Codex activity today — yet.';
+    els.emptySub.textContent = 'Come back after you’ve done some work and I’ll have a reflection ready.';
+    els.emptyOpenScope.hidden = true;
+  }
+  setView('empty');
+}
+els.emptyOpenScope.addEventListener('click', () => showScope('reflect'));
+
+function applyResult(res) {
+  cur.text = res.post || '';
+  cur.generated = res.post || '';
+  cur.fnMap = {};
+  for (const f of (res.footnotes || [])) cur.fnMap[f.n] = f;
+  cur.editing = false;
+  els.editor.hidden = true;
+  els.article.hidden = false;
+  els.edit.textContent = '✎ edit';
+  renderArticle();
+  els.quiet.hidden = !res.quietDay;
+  if (res.quietDay) {
+    els.quiet.querySelector('span').textContent =
+      "Quiet day — what's in scope didn't have much worth a cohort post. Nothing posts.";
+  }
+  setView('reflect');
+}
+
+function updateLearned(patterns) {
+  const n = (patterns || []).length;
+  els.learned.hidden = !n;
+  els.learned.textContent = n ? `✦ learned ${n}` : '';
+}
+
+async function generate() {
+  setView('loading');
+  els.loadingText.textContent = 'Reading the cohort feed and writing the update…';
+  try {
+    const res = await window.daybook.generate({
+      digest: ctx.digest, name: ctx.name, dateLabel: ctx.dateLabel,
+    });
+    applyResult(res);
+    updateLearned(res.learned);
+  } catch (e) { fail(e.message || String(e)); }
+}
+
+// Revise THIS draft in place from a note. The note is logged, but only shapes
+// future drafts if the same intent recurs as a pattern.
+async function revise() {
+  const instruction = els.fb.value.trim();
+  if (!instruction) { els.fb.focus(); return; }
+  setView('loading');
+  els.loadingText.textContent = 'Revising the draft…';
+  try {
+    const res = await window.daybook.revise({ currentDraft: currentText(), instruction });
+    applyResult(res);
+    updateLearned(res.learned);
+    els.fb.value = '';
+  } catch (e) { fail(e.message || String(e)); }
+}
+
+function fail(msg) { els.errorText.textContent = msg; setView('error'); }
+
+// ── actions ────────────────────────────────────────────────────────────────
+// The actual public egress. Posts the (already twice-scrubbed) draft.
+async function doPost() {
+  const content = currentText().trim();
+  if (!content) return;
+  els.post.disabled = true; els.skip.disabled = true;
+  els.post.textContent = 'Posting…';
+  try {
+    const res = await window.daybook.post(content);
+    if (mode === 'intro') await window.daybook.markIntroduced();
+    const who = res.handle ? '@' + res.handle : (res.pseudonym || 'you');
+    const what = mode === 'intro' ? 'Your introduction is posted' : 'Posted';
+    els.successSub.textContent =
+      `${what} as ${who} to ${hostLabel(res.server)}. It’s held in staging and stays deletable for a while before it goes public.`;
+    setView('success');
+  } catch (e) {
+    fail(e.message || String(e));
+  } finally {
+    els.post.disabled = false; els.skip.disabled = false;
+    els.post.textContent = 'Post to cohort →';
+  }
+}
+
+els.post.addEventListener('click', () => {
+  const content = currentText().trim();
+  if (!content) return;
+  // Secrets are scrubbed deterministically in the post handler (main.js) before
+  // anything leaves; no confirm step.
+  doPost();
+});
+
+els.connectJoin.addEventListener('click', doJoin);
+els.connectHandle.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
+els.welcomeBegin.addEventListener('click', startInterview);
+els.welcomeSkip.addEventListener('click', async () => { await window.daybook.markIntroduced(); run(); });
+els.ivNext.addEventListener('click', ivNext);
+els.ivBack.addEventListener('click', ivBack);
+els.ivMic.addEventListener('click', micToggle);
+els.ivType.addEventListener('click', () => { setAnswer('text'); els.ivAnswer.focus(); });
+els.ivRedo.addEventListener('click', startRecording);
+els.ivAnswer.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ivNext();
+});
+els.ivSkip.addEventListener('click', buildIntro); // "Wrap up →" — write from what we have
+els.edit.addEventListener('click', toggleEdit);
+els.revise.addEventListener('click', revise);
+els.fb.addEventListener('keydown', (e) => {
+  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') revise();
+});
+// Review / forget what Router has learned from recurring notes.
+els.learned.addEventListener('click', async () => {
+  const list = await window.daybook.getLearned();
+  if (!list.length) return;
+  const text = list.map((p, i) => `${i + 1}. ${p}`).join('\n');
+  if (confirm(`Router has picked up these recurring preferences and applies them to every draft:\n\n${text}\n\nForget them?`)) {
+    await window.daybook.clearLearned();
+    updateLearned([]);
+  }
+});
+els.skip.addEventListener('click', async () => {
+  if (mode === 'intro') { await window.daybook.markIntroduced(); return run(); }
+  window.close();
+});
+
+// ── scope manager (#scope) — pick which repos the Router can see ──────────────
+async function showScope(returnTo) {
+  scopeReturnView = returnTo || 'reflect';
+  setView('scope');
+  try { scopeState = await window.daybook.scopeGet(); }
+  catch (e) { scopeState = null; }
+  renderScopeManager();
+}
+
+// One flat, alphabetical list of every repo with recent activity. A checkbox
+// per repo = in scope or not. That's the whole control surface.
+function renderScopeManager() {
+  const s = scopeState || { included: [], excluded: [], newRepos: [] };
+  const rows = []
+    .concat((s.included || []).map((r) => ({ r, included: true })))
+    .concat((s.newRepos || []).map((r) => ({ r, included: false })))
+    .concat((s.excluded || []).map((r) => ({ r, included: false })));
+  rows.sort((a, b) => (a.r.label || '').localeCompare(b.r.label || ''));
+
+  els.scopeList.innerHTML = '';
+  if (!rows.length) {
+    const empty = document.createElement('div');
+    empty.className = 'scope-empty';
+    empty.textContent = 'No repos with recent activity yet.';
+    els.scopeList.appendChild(empty);
+    return;
+  }
+  for (const { r, included } of rows) els.scopeList.appendChild(repoRow(r, included));
+}
+
+// A repo row is a checkbox + name + path. Toggling writes an explicit
+// include/exclude override (which wins over everything). No live re-render, so
+// the row doesn't jump as you click; the next open reloads fresh.
+function repoRow(r, included) {
+  const row = document.createElement('label');
+  row.className = 'scope-row';
+  const cb = document.createElement('input');
+  cb.type = 'checkbox';
+  cb.checked = included;
+  cb.addEventListener('change', async () => {
+    try {
+      scopeState = await window.daybook.scopeOverride({
+        fullPath: r.fullPath, decision: cb.checked ? 'include' : 'exclude',
+      });
+    } catch (e) { cb.checked = !cb.checked; } // revert on failure
+  });
+  const text = document.createElement('span');
+  text.className = 'sx-text';
+  text.innerHTML =
+    `<span class="sx-name">${escapeHtml(r.label)}</span>` +
+    `<span class="sx-path">${escapeHtml(r.fullPath)}</span>`;
+  row.appendChild(cb);
+  row.appendChild(text);
+  return row;
+}
+
+els.openScope.addEventListener('click', () => showScope('reflect'));
+els.scopeBack.addEventListener('click', () => setView(scopeReturnView));
+els.scopeSave.addEventListener('click', () => setView(scopeReturnView));
+
+// ── device link panel ───────────────────────────────────────────────────────
+let linkHostUnsub = null;
+let peerMode = 'code'; // 'code' (pairing-code TCP) | 'ssh'
+function setPeerMode(m) {
+  peerMode = m;
+  els.tabCode.classList.toggle('is-on', m === 'code');
+  els.tabSsh.classList.toggle('is-on', m === 'ssh');
+  els.peerPaneCode.hidden = m !== 'code';
+  els.peerPaneSsh.hidden = m !== 'ssh';
+  els.peerErr.hidden = true;
+}
+async function renderSavedPeers() {
+  const peers = await window.daybook.linkPeersList();
+  els.sshSavedList.innerHTML = '';
+  if (!peers.length) { els.sshSaved.hidden = true; return; }
+  els.sshSaved.hidden = false;
+  for (const p of peers) {
+    const row = document.createElement('div');
+    row.className = 'ssh-saved-row';
+    const name = document.createElement('span');
+    name.className = 'ssh-saved-name';
+    name.textContent = p.target;
+    const rm = document.createElement('button');
+    rm.className = 'ssh-saved-rm';
+    rm.title = 'Stop including this machine';
+    rm.textContent = '×';
+    rm.addEventListener('click', async () => { await window.daybook.linkPeerRemove(p.target); renderSavedPeers(); });
+    row.appendChild(name); row.appendChild(rm);
+    els.sshSavedList.appendChild(row);
+  }
+}
+async function showLink() {
+  setView('link');
+  renderSavedPeers();
+  const st = await window.daybook.linkStatus();
+  if (st.host && st.host.running) { els.hostCode.value = st.host.code; els.hostStatus.textContent = `${st.host.peers} peer(s) connected`; els.hostIdle.hidden = true; els.hostActive.hidden = false; }
+  else { els.hostIdle.hidden = false; els.hostActive.hidden = true; }
+  if (st.sshConnected) { peerMode = 'ssh'; els.peerIdle.hidden = true; els.peerActive.hidden = false; els.peerStatus.textContent = `Connected over SSH · ${st.sshTarget || ''}`; }
+  else if (st.peerConnected) { peerMode = 'code'; els.peerIdle.hidden = true; els.peerActive.hidden = false; els.peerStatus.textContent = 'Connected to peer.'; }
+  else { els.peerIdle.hidden = false; els.peerActive.hidden = true; setPeerMode(peerMode); }
+}
+els.tabCode.addEventListener('click', () => setPeerMode('code'));
+els.tabSsh.addEventListener('click', () => setPeerMode('ssh'));
+els.openLink.addEventListener('click', showLink);
+els.linkBack.addEventListener('click', boot);
+
+els.hostStart.addEventListener('click', async () => {
+  els.hostStart.disabled = true;
+  const info = await window.daybook.linkHostStart({ recent: els.permRecent.checked, raw: els.permRaw.checked });
+  els.hostStart.disabled = false;
+  if (!info) { els.hostStatus.textContent = 'Could not start sharing.'; return; }
+  els.hostCode.value = info.code;
+  els.hostStatus.textContent = `${info.peers} peer(s) connected · ${info.ip}:${info.port}`;
+  els.hostIdle.hidden = true; els.hostActive.hidden = false;
+  if (linkHostUnsub) linkHostUnsub();
+  linkHostUnsub = window.daybook.onLinkHostChanged((i) => { if (i) els.hostStatus.textContent = `${i.peers} peer(s) connected · ${i.ip}:${i.port}`; });
+});
+els.hostStop.addEventListener('click', async () => { await window.daybook.linkHostStop(); if (linkHostUnsub) { linkHostUnsub(); linkHostUnsub = null; } els.hostIdle.hidden = false; els.hostActive.hidden = true; });
+els.hostCode.addEventListener('focus', () => els.hostCode.select());
+
+els.peerConnect.addEventListener('click', async () => {
+  els.peerErr.hidden = true;
+  const code = els.peerCode.value.trim();
+  if (!code) return;
+  els.peerConnect.disabled = true; els.peerConnect.textContent = 'Connecting…';
+  try {
+    await window.daybook.linkConnect(code);
+    peerMode = 'code';
+    els.peerIdle.hidden = true; els.peerActive.hidden = false; els.peerResult.textContent = '';
+    els.peerStatus.textContent = 'Connected to peer.';
+  } catch (e) { els.peerErr.textContent = e.message || String(e); els.peerErr.hidden = false; }
+  finally { els.peerConnect.disabled = false; els.peerConnect.textContent = 'Connect →'; }
+});
+els.peerSshConnect.addEventListener('click', async () => {
+  els.peerErr.hidden = true;
+  const target = els.peerSsh.value.trim();
+  if (!target) return;
+  els.peerSshConnect.disabled = true; els.peerSshConnect.textContent = 'Connecting…';
+  try {
+    const r = await window.daybook.linkSshConnect(target);
+    peerMode = 'ssh';
+    els.peerIdle.hidden = true; els.peerActive.hidden = false; els.peerResult.textContent = '';
+    const has = [r.hasClaude && 'Claude', r.hasCodex && 'Codex'].filter(Boolean).join(' + ');
+    els.peerStatus.textContent = `Connected over SSH · ${r.target}${has ? ` (${has} logs)` : ''}`;
+    renderSavedPeers();
+  } catch (e) { els.peerErr.textContent = e.message || String(e); els.peerErr.hidden = false; }
+  finally { els.peerSshConnect.disabled = false; els.peerSshConnect.textContent = 'Connect over SSH →'; }
+});
+els.peerSsh.addEventListener('keydown', (e) => { if (e.key === 'Enter') els.peerSshConnect.click(); });
+els.peerPullRecent.addEventListener('click', async () => {
+  els.peerResult.textContent = 'Pulling recent work…';
+  try {
+    const r = peerMode === 'ssh' ? await window.daybook.linkSshRecent(30) : await window.daybook.linkPeerRecent(30);
+    if (r.type === 'error') { els.peerResult.textContent = r.error; return; }
+    const cap = r.truncated ? ' (capped)' : '';
+    els.peerResult.textContent = `Recent work — ${r.projectCount} projects${cap}:\n${(r.projects || []).join(', ')}\n\n${(r.digest || '').slice(0, 600)}…`;
+  } catch (e) { els.peerResult.textContent = e.message || String(e); }
+});
+els.peerPullRaw.addEventListener('click', async () => {
+  els.peerResult.textContent = 'Pulling raw logs…';
+  try {
+    const r = peerMode === 'ssh' ? await window.daybook.linkSshRaw(7) : await window.daybook.linkPeerRaw(7);
+    if (r.type === 'error') { els.peerResult.textContent = r.error; return; }
+    const kb = Math.round((r.totalBytes || 0) / 1024);
+    els.peerResult.textContent = `Raw logs — ${r.files.length} session files, ${kb} KB${r.truncated ? ' (capped)' : ''}:\n` + r.files.slice(0, 12).map((f) => `• ${f.source}/${f.name}`).join('\n');
+  } catch (e) { els.peerResult.textContent = e.message || String(e); }
+});
+els.peerDisconnect.addEventListener('click', async () => {
+  if (peerMode === 'ssh') await window.daybook.linkSshDisconnect();
+  else await window.daybook.linkDisconnect();
+  els.peerIdle.hidden = false; els.peerActive.hidden = true; setPeerMode(peerMode);
+});
+els.regen.addEventListener('click', () => (mode === 'intro' ? buildIntro() : generate()));
+els.retry.addEventListener('click', boot);
+els.openFeed.addEventListener('click', () => window.daybook.openFeed(ctx.server));
+
+boot();

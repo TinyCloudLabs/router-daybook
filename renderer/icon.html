@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8" />
+<style>html, body { margin: 0; padding: 0; background: transparent; }</style>
+</head>
+<body>
+  <canvas id="c" width="512" height="512"></canvas>
+  <script>
+    const x = document.getElementById('c').getContext('2d');
+    function rr(x0, y0, w, h, r) {
+      x.beginPath();
+      x.moveTo(x0 + r, y0);
+      x.arcTo(x0 + w, y0, x0 + w, y0 + h, r);
+      x.arcTo(x0 + w, y0 + h, x0, y0 + h, r);
+      x.arcTo(x0, y0 + h, x0, y0, r);
+      x.arcTo(x0, y0, x0 + w, y0, r);
+      x.closePath();
+    }
+    // rounded-square backdrop in the app's palette
+    const g = x.createLinearGradient(0, 0, 512, 512);
+    g.addColorStop(0, '#221652');
+    g.addColorStop(1, '#0e0b1a');
+    rr(36, 36, 440, 440, 100);
+    x.fillStyle = g;
+    x.fill();
+    // disco ball, with a soft accent glow
+    x.shadowColor = 'rgba(183,155,255,0.95)';
+    x.shadowBlur = 46;
+    x.font = '300px "Apple Color Emoji"';
+    x.textAlign = 'center';
+    x.textBaseline = 'middle';
+    x.fillText('🪩', 256, 272);
+  </script>
+</body>
+</html>
