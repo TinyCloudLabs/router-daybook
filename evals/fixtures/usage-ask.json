@@ -1,0 +1,26 @@
+{
+  "name": "usage-ask — honest pattern/usage invitation, no hard blocker (HIGH D2)",
+  "input": {
+    "name": "James",
+    "dateLabel": "Tuesday, June 2",
+    "myHandle": "specularist",
+    "post": [
+      "Router digest · Tuesday, June 2",
+      "Added an in-app feed of his own and cohort posts to the daybook.",
+      "",
+      "Wins — James added an in-app feed to router-daybook. Until today, posting ended on a success screen whose only feed affordance launched the Router in an external browser; nothing rendered in the app. Now his own posts and the cohort feed show in-app, inline on the success screen right after posting and in a persistent feed view reachable from the nav. The backend query returns his own and cohort entries together, marked by author and newest-first, with the IPC handler wired next to the existing open-feed channel.",
+      "Insight — The feed was a rendering and navigation problem, not a backend one. fetchFeed() already returned the cohort feed and the raw entries endpoint already carried his own posts, so the whole feature was wiring the data that was already on hand into the existing view pattern.",
+      "Asking — For the view plumbing he went with a single previous-view variable plus a guard so opening the feed from a transient screen returns somewhere sane. He is curious what pattern others use for in-app view state in a vanilla setup — a single back-pointer like his, or a small history stack for nested onboarding and success screens. He would also welcome anyone running the daybook trying the new feed view and saying whether the inline-versus-persistent split feels right."
+    ],
+    "footnotes": [],
+    "feedEntries": [
+      { "handle": "amiller", "date": "May 31", "content": "Tuning a RAG pipeline for our docs search; chunking strategy is killing recall." },
+      { "handle": "kkoci80", "date": "May 30", "content": "Shipped a Stripe billing portal integration today, webhooks were tricky." }
+    ],
+    "workLog": "router-daybook: in-app feed (inline + persistent), router.cohortFeed query, currentView() tracker + guarded return target in setView. Chose a single previous-view variable over a history stack; it works, but it was a judgment call."
+  },
+  "expect": {
+    "gatesPassed": true,
+    "dimMin": [["d2", 2]]
+  }
+}

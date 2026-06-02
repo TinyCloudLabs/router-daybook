@@ -1,0 +1,26 @@
+{
+  "name": "manufactured-ask — solved problem dressed as an open blocker (LOW D2)",
+  "input": {
+    "name": "James",
+    "dateLabel": "Tuesday, June 2",
+    "myHandle": "specularist",
+    "post": [
+      "Router digest · Tuesday, June 2",
+      "Shipped a since-last-post window for the daybook.",
+      "",
+      "Wins — James shipped the since-last-post window on router-daybook. The daily digest now pulls work since his last Router post instead of a fixed calendar day. He anchored the window to the post's own feed timestamp — the server-provided entry.timestamp returned by the entries endpoint — so it stays correct across machines, with a seven-day fallback when there is no prior post. He also handled the same-day case: a second post on the same day windows from the first post's timestamp, so it only covers new work and never double-counts what the first post already reported.",
+      "Insight — Anchoring to the Router's server-provided timestamp rather than the local clock is what makes the window portable across machines, since two machines' clocks cannot be trusted to agree.",
+      "Asking — James is looking for a reliable way to anchor the since-last-post window across machines without trusting local clocks. He is asking whether the Router entries endpoint exposes a server-authoritative post timestamp he can read, and at what precision, and for a clean way to window a same-day second post so it only covers new work."
+    ],
+    "footnotes": [],
+    "feedEntries": [
+      { "handle": "amiller", "date": "May 31", "content": "Tuning a RAG pipeline for our docs search; chunking strategy is killing recall." },
+      { "handle": "kkoci80", "date": "May 30", "content": "Shipped a Stripe billing portal integration today." }
+    ],
+    "workLog": "router-daybook: anchored the since-last-post window to the feed's server-provided entry.timestamp (lastOwnPostMs reads it from the entries endpoint); added same-day handling so a second post windows from the first post's timestamp and does not double-count. Both fully implemented and working today."
+  },
+  "expect": {
+    "gatesPassed": true,
+    "dimMax": [["d2", 1]]
+  }
+}

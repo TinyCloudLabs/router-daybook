@@ -22,21 +22,21 @@ const FORMAT = `FORMAT (the post must obey this exactly — the eval enforces it
 - Line 1: "Router digest · ${A.dateLabel}"
 - Line 2: a plain one-line summary.
 - Blank line.
-- BODY, ~220-360 words, THIRD PERSON (${A.name} is the subject), with these lead-ins IN ORDER, each 1-3 plain sentences:
-  "Wins — " what shipped/moved.
-  "Struggles — " what was hard; name real projects (router-daybook, teleport-router); NEVER a client.
-  "Insight — " the one thing ${A.name} concluded.
-  "Offering — " OMIT THIS BY DEFAULT. Include it ONLY when today's work DIRECTLY solves a SPECIFIC person's STATED problem in the feed — a genuinely useful handoff they would actually want. Topical / same-domain / same-pattern / same-tooling overlap is NOT enough; if the match isn't tight and truly useful, leave Offering out. When included: quote their EXACT phrase (3-10 words) in "quotes" + a superscript marker (¹²³) and state the concrete thing handed over.
-  "Asking — " 1-2 CONCRETE asks tied to today's real struggles. Cite a feed member ONLY when their post is a tight, genuinely useful match; in the COMMON case, ask plainly with NO name and NO marker. The body MUST END on Asking.
+- BODY, ~220-360 words, THIRD PERSON (${A.name} is the subject), in the canonical order below. ONLY "Wins" and "Insight" are required; the rest appear ONLY when genuine — omit rather than manufacture:
+  "Wins — " (required) what shipped/moved.
+  "Struggles — " (only if REAL friction) a genuine blocker — something that actually fought back, broke, took many failed attempts, or is unresolved. A normal product-design decision he simply made and resolved is NOT a struggle; if the day was steady building, OMIT this. Name real projects (router-daybook, teleport-router); NEVER a client.
+  "Insight — " (required) the one thing ${A.name} concluded.
+  "Offering — " (OMIT BY DEFAULT) include ONLY when today's work DIRECTLY solves a SPECIFIC person's STATED problem in the feed — a genuinely useful handoff. Topical / same-domain / same-pattern / same-tooling overlap is NOT enough. When included: quote their EXACT phrase (3-10 words) in "quotes" + a superscript marker (¹²³) and state the concrete thing handed over.
+  "Asking — " (OPTIONAL, only when genuine) a real invitation for input: an open problem he has NOT solved, a request to try/give feedback on what he shipped, an honest opinion-on-patterns question (he made a working choice, wants to hear how others approach it), or whether anyone has explored a similar idea. NEVER re-ask something he ALREADY solved as if it were open, never invent a struggle to justify a question, never end on a question just to end on one. Name a feed member only on a tight genuine match (verbatim quote + marker); else ask plainly with NO name.
 - Blank line, then: a line "—", a line "Sources", then one "ⁿ @handle · date" per footnote in order.
-RESTRAINT (the rubric scores this): a forced or merely-plausible @mention is WORSE than none. The default is NO @mention. Do not manufacture a connection to seem collaborative — most days the honest post has no Offering and a plain, unnamed Asking.
+RESTRAINT (the rubric scores this): a forced @mention, a manufactured struggle, and a dressed-up ask are all WORSE than honest omission. The default is NO @mention; Struggles/Offering/Asking appear only when genuine. Some honest days have no Struggles, no Offering, and no Asking — that is fine.
 BANNED (auto-fail): "compare notes", "pick your brain", "swap ideas", "happy to chat", "open to collaboration", "would be glad to", "reach out", "if anyone has…", "let me know if…", and any hedge/vague-verb/blanket-openness phrasing. Every offer/ask must be specific and concrete or omitted.
 Plain, factual, ${A.name}'s own voice — no magazine turns, no hype, no emoji. Report only real work, not session plumbing (transcription, the assistant reading files).`;
 
 const STRATEGIES = [
-  { key: 'restraint', hint: 'Default to NO @mention at all: omit Offering and ask plainly with no name. Only name someone if their STATED problem is exactly what James solved today. End on a clean, concrete ask.' },
-  { key: 'genuine-or-omit', hint: 'Search the feed hard for a TRULY useful match — someone whose stated problem James can hand a real solution to. If and only if one clears that bar, include a specific Offering; otherwise omit it entirely. Never stretch.' },
-  { key: 'lean', hint: 'Tightest possible post at the low end of the word range. Every sentence earns its place; a concrete ask, and an Offering only if it is genuinely useful to a named person.' },
+  { key: 'report-only', hint: 'Assume the honest day: Wins + Insight, no Struggles, no Offering, no Asking unless one is unmistakably genuine. Report what shipped and what was learned, plainly, and stop. Do not manufacture a struggle, a connection, or a question.' },
+  { key: 'genuine-ask', hint: 'Wins + Insight, plus ONE honest Asking if a real one exists — an open problem he has not solved, a request to try/give feedback on what he shipped, or an honest opinion-on-patterns question (he made a working choice, wants to hear how others approach it). Never re-ask something already solved. Struggle/Offering only if genuinely real.' },
+  { key: 'genuine-or-omit', hint: 'Include each optional section ONLY when genuine: a Struggle only on real friction, an Offering only on a tight feed match where his work solves their stated problem, an Asking only as a real open/usage/pattern question. Omit anything you would have to stretch or invent.' },
 ];
 
 const DRAFT_SCHEMA = {

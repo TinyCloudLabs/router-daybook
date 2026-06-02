@@ -81,7 +81,7 @@ function checkGates(input = {}) {
     }
     const canonical = postspec.LEAD_INS.filter((x) => P.leadIns.includes(x));
     if (P.leadIns.join('>') !== canonical.join('>')) fails.push(`lead-ins out of order: ${P.leadIns.join(' → ')}`);
-    if (P.leadIns.length && P.leadIns[P.leadIns.length - 1] !== postspec.FINAL_LEAD_IN) {
+    if (postspec.FINAL_LEAD_IN && P.leadIns.length && P.leadIns[P.leadIns.length - 1] !== postspec.FINAL_LEAD_IN) {
       fails.push(`body must end on "${postspec.FINAL_LEAD_IN}", ends on "${P.leadIns[P.leadIns.length - 1]}"`);
     }
     add('G1', fails.length === 0, fails.join('; ') || 'structure & order ok');

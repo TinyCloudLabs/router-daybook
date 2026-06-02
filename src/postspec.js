@@ -14,17 +14,21 @@
 // ─────────────────────────────────────────────────────────────────────────
 
 // v2: connections must be TRULY USEFUL or omitted. A forced/plausible @-mention
-// now scores worse than none, and restraint (no mention when nothing fits) is
-// full marks. See evals/rubric.md D1/D3.
-const RUBRIC_VERSION = 2;
+// scores worse than none; restraint (no mention) is full marks (D1/D3).
+// v3: the same restraint governs STRUGGLES and ASKS. Only Wins and Insight are
+// required; Struggles (real friction only) and Asking (a genuine OPEN, unsolved
+// need only) are optional — a normal design decision or a solved problem is
+// neither a struggle nor an ask. No "always end on an ask." See evals/rubric.md.
+const RUBRIC_VERSION = 3;
 
-// The body lead-ins, in required order. Offering is optional (omit when there's
-// genuinely no one to help); every other lead-in is required, and the body must
-// END on the Asking section.
+// The body lead-ins, in canonical order. Only Wins and Insight are required.
+// Struggles, Offering, and Asking are optional — included ONLY when genuine
+// (real friction / a real match / a real open need), never manufactured to
+// fill a section. No lead-in is forced to be last.
 const LEAD_INS = ['Wins', 'Struggles', 'Insight', 'Offering', 'Asking'];
-const REQUIRED_LEAD_INS = ['Wins', 'Struggles', 'Insight', 'Asking'];
-const OPTIONAL_LEAD_INS = ['Offering'];
-const FINAL_LEAD_IN = 'Asking';
+const REQUIRED_LEAD_INS = ['Wins', 'Insight'];
+const OPTIONAL_LEAD_INS = ['Struggles', 'Offering', 'Asking'];
+const FINAL_LEAD_IN = null;
 
 // Body word count window. The prompt aims for ~220–360; the gate is a little
 // wider so a good post isn't failed for a few words either way.

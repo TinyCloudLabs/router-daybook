@@ -1,5 +1,5 @@
 {
-  "name": "restraint — no @mention because none truly fit (should score HIGH)",
+  "name": "restraint — honest Wins+Insight only, no manufactured struggle/offer/ask (HIGH)",
   "input": {
     "name": "James",
     "dateLabel": "Tuesday, June 2",
@@ -8,10 +8,8 @@
       "Router digest · Tuesday, June 2",
       "Shipped a since-last-post window and an in-app cohort feed.",
       "",
-      "Wins — James shipped two things on router-daybook today. The daily digest now pulls work since his last Router post instead of a fixed midnight-to-midnight day, anchored to the post's feed timestamp so it stays correct on any machine. He also added an in-app feed view that shows his posts and the cohort's in one list, newest first, instead of only a button that kicked you out to the browser.",
-      "Struggles — The window math fought him. A missing checkpoint, a stale one, and a future timestamp from clock skew all had to clamp to a seven-day floor, and Codex stores sessions in per-day directories, so the collector had to walk each day in the range rather than do one bounds check. The in-app feed also needed a small view-state tracker so the back button returns to a sane screen.",
-      "Insight — Deriving the window's anchor from data that already exists — the Router's own record of your posts — beats writing a local checkpoint file that starts empty. The feed is the source of truth, so it just works on a fresh install.",
-      "Asking — James wants the since-last-post anchor to survive clock skew across machines. He is asking whether the Router entries endpoint exposes a server-authoritative post timestamp he can read instead of the local clock, and what precision it reports."
+      "Wins — James shipped two things on router-daybook today. The daily digest now pulls work since his last Router post instead of a fixed midnight-to-midnight day, anchored to the post's own feed timestamp so the window stays correct on whatever machine he runs it on, with a plain seven-day fallback when there is no prior post. He also added an in-app feed: until today, posting ended on a success screen whose only feed affordance launched the Router in an external browser, and now his own posts and the cohort's render in the app itself, inline on the success screen right after posting and in a persistent feed view reachable from the nav.",
+      "Insight — The feature turned out to be a rendering and navigation problem, not a backend one. fetchFeed() already returned the cohort feed and the raw entries endpoint already carried his own posts, so the data to show everything in-app was already on hand; the work was matching the existing Scope-view pattern end to end rather than adding new plumbing. The same was true of the window: anchoring to data that already exists — the Router's record of his posts — beat inventing a local checkpoint file that starts empty, because it just works on a fresh install."
     ],
     "footnotes": [],
     "feedEntries": [
@@ -19,11 +17,11 @@
       { "handle": "kkoci80", "date": "May 30", "content": "Shipped a Stripe billing portal integration today, webhooks were the tricky part." },
       { "handle": "shashank", "date": "May 29", "content": "Training a small classifier to route support tickets, label noise is rough." }
     ],
-    "workLog": "router-daybook: since-last-post window anchored to feed timestamp, 7-day clamp for missing/stale/future checkpoint, codex per-day walk; in-app feed view (inline + persistent) with currentView() tracker and return-target guard. Files: transcripts.js, router.js, main.js, app.js."
+    "workLog": "router-daybook: since-last-post window anchored to feed entry.timestamp (server-provided), 7-day fallback; in-app feed view (inline + persistent) reusing the Scope-view pattern. Files: transcripts.js, router.js, main.js, app.js. Everything landed cleanly; no real blockers."
   },
   "expect": {
     "gatesPassed": true,
     "minScore": 15,
-    "dimMin": [["d1", 3], ["d3", 3]]
+    "dimMin": [["d1", 3], ["d2", 3], ["d3", 3]]
   }
 }

@@ -20,10 +20,11 @@ A post **passes** iff **all hard gates pass** AND the **judge score ≥ THRESHOL
 - Line 1 is exactly `Router digest · <dateLabel>`.
 - Line 2 is a non-empty plain summary.
 - A blank line separates the summary from the body.
-- The body contains the lead-ins **in order**: `Wins →
-  Struggles → Insight → [Offering?] → Asking`. `Wins`, `Struggles`, `Insight`,
-  `Asking` are required; `Offering` is optional. The body's last lead-in is
-  `Asking` (the post ends on a concrete ask).
+- The body contains the lead-ins in the canonical order
+  `Wins → [Struggles?] → Insight → [Offering?] → [Asking?]`. **Only `Wins` and
+  `Insight` are required**; `Struggles`, `Offering`, and `Asking` are optional —
+  included only when genuine (real friction / a real match / a real ask), never
+  manufactured. No lead-in is forced to be last.
 
 **G2 — Citation integrity.**
 - Every superscript marker (¹ ² ³ …) in the body has a matching `footnotes[]`
@@ -50,12 +51,15 @@ and no locked client/abstraction term appears. (Reuses `src/redact.js`.)
 
 ## Scored dimensions (LLM judge — each 0–3, total /18)
 
-> **Restraint principle (D1 + D3).** A forced or merely-plausible connection is
-> *worse* than no connection. The default is to make **no @-mention**. James
-> names a peer only when his actual work directly bears on that person's *stated*
-> problem and the offer/ask is genuinely useful to them. Topical overlap, same
-> domain, same UI pattern, or same tooling are **not enough** — omit them.
-> Honest omission scores as high as a genuinely useful match.
+> **Restraint & honesty principle (D1 + D2 + D3).** A forced connection, a
+> manufactured struggle, and a dressed-up ask are all *worse* than honest
+> omission. The default is **no @-mention**, and Struggles/Offering/Asking appear
+> only when genuine. James names a peer only when his work directly bears on that
+> person's *stated* problem; reports a struggle only on real friction; and asks
+> only a genuine question (an open problem, a usage/feedback request, an honest
+> opinion-on-patterns question, or "has anyone tried this idea"). Topical /
+> same-domain / same-pattern / same-tooling overlap is not a match. Honest
+> omission scores as high as genuine content.
 
 **D1 — Offering quality & restraint.** When the feed has someone James can
 *genuinely* help (his work solves their stated problem), does he offer specific,
@@ -67,10 +71,20 @@ when no genuine match exists rather than forcing a weak one?
 - 3 = specific, actionable help to a truly-matched peer, **or** no Offering at
   all because none was genuinely useful (correct restraint).
 
-**D2 — Asking quality.** Are the asks *concrete and actionable* — a specific
-need — rather than vague openness, and does the post end on one?
-- 0 = no ask / only vague openness. 1 = an ask but fuzzy. 2 = concrete ask.
-  3 = concrete, specific, answerable-this-week ask that ends the post.
+**D2 — Asking quality & honesty.** An ask is *optional*. When one is present,
+is it *genuine and honestly framed*? Genuine asks: an open problem James hasn't
+solved; a request to try / use / give feedback on what he shipped; an honest
+opinion-on-patterns question (he made a working choice, wants to hear how others
+approach it); or whether anyone has explored a similar idea. The disqualifier is
+dishonest framing — re-asking something he *already solved* as if it were open,
+or inventing a struggle to justify a question.
+- 0 = vague openness ("open to collaboration", "let me know").
+- 1 = a solved problem dressed up as an open blocker, or an ask manufactured
+  from a routine decision.
+- 2 = a real ask, slightly soft or padded.
+- 3 = a genuine, honestly-framed ask (including a usage/pattern/idea
+  invitation), **or** no ask at all because nothing genuine fit (restraint — the
+  absence of an ask is never penalized).
 
 **D3 — Connection quality & restraint.** Judge *every* @-mention (Offering or
 Asking). Each must be a *truly useful*, substantive match where James's work
