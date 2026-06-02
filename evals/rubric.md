@@ -59,7 +59,10 @@ and no locked client/abstraction term appears. (Reuses `src/redact.js`.)
 > only a genuine question (an open problem, a usage/feedback request, an honest
 > opinion-on-patterns question, or "has anyone tried this idea"). Topical /
 > same-domain / same-pattern / same-tooling overlap is not a match. Honest
-> omission scores as high as genuine content.
+> omission scores as high as genuine content. And **weight by importance and
+> urgency**: a trivial honest detail — especially an ask about implementation
+> minutiae — is *worse* than omitting it; the cohort's attention goes to what
+> actually matters (testing, real usage, high-stakes direction).
 
 **D1 — Offering quality & restraint.** When the feed has someone James can
 *genuinely* help (his work solves their stated problem), does he offer specific,
@@ -71,20 +74,28 @@ when no genuine match exists rather than forcing a weak one?
 - 3 = specific, actionable help to a truly-matched peer, **or** no Offering at
   all because none was genuinely useful (correct restraint).
 
-**D2 — Asking quality & honesty.** An ask is *optional*. When one is present,
-is it *genuine and honestly framed*? Genuine asks: an open problem James hasn't
-solved; a request to try / use / give feedback on what he shipped; an honest
-opinion-on-patterns question (he made a working choice, wants to hear how others
-approach it); or whether anyone has explored a similar idea. The disqualifier is
-dishonest framing — re-asking something he *already solved* as if it were open,
-or inventing a struggle to justify a question.
+**D2 — Asking quality, honesty & importance.** An ask is *optional*. When one is
+present, is it *genuine*, *honestly framed*, **and weighted by importance/
+urgency** — something that actually matters to James's goals and that a builder
+cohort can meaningfully help with? James is usually not stuck, so the high-value
+asks are: help **testing** or trying what he shipped; feedback on **whether/how**
+people would use it; a high-stakes **direction** call; or a problem he's
+genuinely blocked on. Two disqualifiers: *dishonest framing* (re-asking a solved
+problem as if open, inventing a struggle) and *triviality* (a low-stakes internal
+detail — which variable, which nav pattern — that doesn't matter to the cohort,
+even if honest).
+Also weigh **availability**: if James shipped something user-facing or with
+stakes the cohort could try or opine on, a high-value testing/usage ask *was*
+available — making it is best, and omitting it leaves value on the table.
+Omission is full marks only when the work was genuinely internal/no-stakes.
 - 0 = vague openness ("open to collaboration", "let me know").
-- 1 = a solved problem dressed up as an open blocker, or an ask manufactured
-  from a routine decision.
-- 2 = a real ask, slightly soft or padded.
-- 3 = a genuine, honestly-framed ask (including a usage/pattern/idea
-  invitation), **or** no ask at all because nothing genuine fit (restraint — the
-  absence of an ask is never penalized).
+- 1 = a trivial/low-importance ask (internal detail the cohort can't usefully
+  weigh in on), or a solved problem dressed up as an open blocker.
+- 2 = a genuine but lower-stakes/narrow ask, **or** omission when a high-value
+  testing/usage ask was naturally available (user-facing work shipped) but left out.
+- 3 = a genuine, honestly-framed, **high-value** ask (testing / usage-and-
+  adoption / high-stakes direction / a real blocker), **or** no ask because the
+  work was internal/no-stakes and nothing important was available (restraint).
 
 **D3 — Connection quality & restraint.** Judge *every* @-mention (Offering or
 Asking). Each must be a *truly useful*, substantive match where James's work

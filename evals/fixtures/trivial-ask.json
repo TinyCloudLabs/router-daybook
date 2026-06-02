@@ -1,5 +1,5 @@
 {
-  "name": "usage-ask — high-value testing/usage invitation (HIGH D2)",
+  "name": "trivial-ask — honest but low-importance implementation-detail ask (LOW D2)",
   "input": {
     "name": "James",
     "dateLabel": "Tuesday, June 2",
@@ -10,17 +10,17 @@
       "",
       "Wins — James added an in-app feed to router-daybook. Until today, posting ended on a success screen whose only feed affordance launched the Router in an external browser; nothing rendered in the app. Now his own posts and the cohort feed show in-app, inline on the success screen right after posting and in a persistent feed view reachable from the nav. The backend query returns his own and cohort entries together, marked by author and newest-first, with the IPC handler wired next to the existing open-feed channel.",
       "Insight — The feed was a rendering and navigation problem, not a backend one. fetchFeed() already returned the cohort feed and the raw entries endpoint already carried his own posts, so the whole feature was wiring data that was already on hand into the existing view pattern.",
-      "Asking — Now that the feed is in the app, he wants to know if it earns its place. He would like a few cohort builders to actually run the daybook with the new feed and tell him whether seeing your own posts next to the cohort's changes how you use it — and what would make an in-app feed worth opening daily rather than just posting and leaving. If the answer is that nobody would open it, that is the most useful thing he could hear right now."
+      "Asking — For the view plumbing he went with a single previous-view variable plus a guard so opening the feed from a transient screen returns somewhere sane. Curious how others handle return-navigation state for stacked views in a vanilla setup — one tracked previous-view variable like his, a small history stack, or something else."
     ],
     "footnotes": [],
     "feedEntries": [
       { "handle": "amiller", "date": "May 31", "content": "Tuning a RAG pipeline for our docs search; chunking strategy is killing recall." },
       { "handle": "kkoci80", "date": "May 30", "content": "Shipped a Stripe billing portal integration today, webhooks were tricky." }
     ],
-    "workLog": "router-daybook: in-app feed (inline + persistent), router.cohortFeed query, currentView() tracker + guarded return target in setView. Feature works; open question is whether anyone would actually use an in-app feed daily."
+    "workLog": "router-daybook: in-app feed (inline + persistent), router.cohortFeed query, currentView() tracker + guarded return target in setView. The prev-view-vs-stack choice was a minor judgment call; it already works fine."
   },
   "expect": {
     "gatesPassed": true,
-    "dimMin": [["d2", 2]]
+    "dimMax": [["d2", 1]]
   }
 }

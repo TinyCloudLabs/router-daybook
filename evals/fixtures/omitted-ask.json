@@ -1,0 +1,25 @@
+{
+  "name": "omitted-ask — shipped user-facing feature but omitted the available testing/usage ask (NOT full marks: D2<=2)",
+  "input": {
+    "name": "James",
+    "dateLabel": "Tuesday, June 2",
+    "myHandle": "specularist",
+    "post": [
+      "Router digest · Tuesday, June 2",
+      "Added an in-app feed of his own and cohort posts to the daybook.",
+      "",
+      "Wins — James added an in-app feed to router-daybook. Until today, posting ended on a success screen whose only feed affordance launched the Router in an external browser; nothing rendered in the app. Now both his own posts and the cohort feed show in-app, inline on the success screen right after posting and in a persistent feed view reachable from a nav button. The backend query returns his own and cohort entries together, marked by author and newest-first, with the IPC handler wired next to the existing open-feed channel. On the renderer side he added the element refs, a shared feed-row render, and the show-and-return wiring, mirroring the existing Scope and Link views so the new screen navigates the same way as the rest of the app.",
+      "Insight — The feed was a rendering and navigation problem, not a backend one. fetchFeed() already returned the cohort feed and the raw entries endpoint already carried his own posts, so the whole feature was wiring data that was already on hand into the existing view pattern. Two small structural gaps surfaced while doing it: setView had no notion of the current view, so he added a tracker, and opening the feed from a transient or onboarding screen needed a guarded return target so the back action always lands somewhere sane instead of a dead view."
+    ],
+    "footnotes": [],
+    "feedEntries": [
+      { "handle": "amiller", "date": "May 31", "content": "Tuning a RAG pipeline for our docs search; chunking strategy is killing recall." },
+      { "handle": "kkoci80", "date": "May 30", "content": "Shipped a Stripe billing portal integration today, webhooks were tricky." }
+    ],
+    "workLog": "router-daybook: shipped in-app feed (inline on success + persistent view), router.cohortFeed query, currentView() tracker + guarded return target. User-facing feature; the open question is whether anyone would actually use an in-app feed daily — but the post asks nothing."
+  },
+  "expect": {
+    "gatesPassed": true,
+    "dimMax": [["d2", 2]]
+  }
+}

@@ -18,8 +18,18 @@
 // v3: the same restraint governs STRUGGLES and ASKS. Only Wins and Insight are
 // required; Struggles (real friction only) and Asking (a genuine OPEN, unsolved
 // need only) are optional — a normal design decision or a solved problem is
-// neither a struggle nor an ask. No "always end on an ask." See evals/rubric.md.
-const RUBRIC_VERSION = 3;
+// neither a struggle nor an ask. No "always end on an ask."
+// v4: ASKS are WEIGHTED BY IMPORTANCE AND URGENCY. A trivial-but-honest question
+// (an internal implementation detail like which variable or nav pattern) is NOT
+// a good ask — it doesn't matter to the cohort. The high-value asks are help
+// testing/trying what he shipped, feedback on whether/how people would use it,
+// a high-stakes direction call, or a problem he's genuinely stuck on. PREFER a
+// high-value ask when one is naturally available (he shipped something the
+// cohort could try or opine on); omission is full marks ONLY when the work was
+// genuinely internal/no-stakes with nothing worth others' input. Surface the
+// important thing — but don't omit an available high-value ask either. See
+// evals/rubric.md D2.
+const RUBRIC_VERSION = 4;
 
 // The body lead-ins, in canonical order. Only Wins and Insight are required.
 // Struggles, Offering, and Asking are optional — included ONLY when genuine
