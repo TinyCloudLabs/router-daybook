@@ -1,0 +1,34 @@
+{
+  "name": "spurious — tooling-only @mention match",
+  "input": {
+    "name": "James",
+    "dateLabel": "Tuesday, June 2",
+    "myHandle": "specularist",
+    "post": [
+      "Router digest · Tuesday, June 2",
+      "Shipped the since-last-post window for the daybook.",
+      "",
+      "Wins — James shipped the since-last-post window on router-daybook. The daily digest now pulls work since his last Router post instead of a fixed calendar day, anchored to the post's feed timestamp so it is correct on any machine he runs it on. The fallback to a seven-day window is in and labelled honestly.",
+      "Struggles — Clock skew and a missing checkpoint both had to clamp to the seven-day floor, and Codex's per-day session directories meant the collector walks each day in the range rather than doing a single bounds check. It took a few passes to get the edge cases right without an empty digest.",
+      "Insight — The Router's own record of your posts is a better anchor than a local file that starts empty, because it is already the source of truth and survives a fresh install.",
+      "Offering — @kai got \"MLX Whisper running locally\"¹ this week, and James also uses MLX Whisper for the voice-note feature in router-daybook, so the two are clearly working on the same thing. He can share his setup notes for the transcription sidecar.",
+      "Asking — James needs a second pair of eyes on the seven-day clamp logic, specifically whether a future-dated checkpoint should fall back to the floor or to now. He is looking for anyone who has shipped a since-last-event window and handled clock skew cleanly.",
+      "",
+      "—",
+      "Sources",
+      "¹ @kai · May 28"
+    ],
+    "footnotes": [
+      { "n": 1, "handle": "kai", "quote": "MLX Whisper running locally", "date": "May 28", "excerpt": "Got MLX Whisper running locally for voice notes today, the resident model is fast." }
+    ],
+    "feedEntries": [
+      { "handle": "kai", "date": "May 28", "content": "Got MLX Whisper running locally for voice notes today, the resident model is fast after warmup." },
+      { "handle": "devon", "date": "May 29", "content": "Building an in-app timeline and I keep mixing up my own posts with everyone else's." }
+    ],
+    "workLog": "router-daybook: since-last-post window, 7-day clamp, codex per-day walk. Uses MLX Whisper sidecar for voice answers."
+  },
+  "expect": {
+    "gatesPassed": true,
+    "dimMax": [["d3", 1]]
+  }
+}

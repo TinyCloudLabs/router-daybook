@@ -6,7 +6,9 @@
   "main": "src/main.js",
   "scripts": {
     "start": "electron .",
-    "collect": "node src/transcripts.js"
+    "collect": "node src/transcripts.js",
+    "eval": "node evals/run.js",
+    "eval:fixtures": "node evals/run.js --fixtures"
   },
   "author": "James",
   "license": "MIT",

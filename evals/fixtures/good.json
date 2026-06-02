@@ -1,0 +1,34 @@
+{
+  "name": "good — passes gates, clears threshold",
+  "input": {
+    "name": "James",
+    "dateLabel": "Tuesday, June 2",
+    "myHandle": "specularist",
+    "post": [
+      "Router digest · Tuesday, June 2",
+      "Shipped a since-last-post window and an in-app cohort feed.",
+      "",
+      "Wins — James shipped two things on router-daybook today. The daily digest now pulls work since his last Router post instead of a fixed midnight-to-midnight day, anchored to the post's feed timestamp so it stays correct on any machine. He also added an in-app feed view that shows his posts and the cohort's in one list, newest first.",
+      "Struggles — The window math fought him. A missing checkpoint, a stale one, and a future timestamp from clock skew all had to clamp to a seven-day floor, and Codex stores sessions in per-day directories, so the collector had to walk each day in the range rather than do one bounds check. Getting the fallback label honest took a couple of passes.",
+      "Insight — Deriving the anchor from data that already exists — the Router's own record of your posts — beats writing a local checkpoint file that starts empty. The feed is the source of truth, so it just works on a fresh install.",
+      "Offering — @devon is \"mixing up my own posts\" with everyone else's in one timeline.¹ James just built that exact view and split the two with a single mine flag computed from the feed response — the server already tags each entry's handle, so it is a one-line filter, not a join. He can hand over the render function and the flag logic.",
+      "Asking — James wants the staging-timer design right before router-daybook posts go fully public. @mara has entries that \"stay deletable for an hour\"² before they publish; he needs to know how she set that hold duration and whether the timer lives server-side or client-side.",
+      "",
+      "—",
+      "Sources",
+      "¹ @devon · May 29",
+      "² @mara · May 30"
+    ],
+    "footnotes": [
+      { "n": 1, "handle": "devon", "quote": "mixing up my own posts", "date": "May 29", "excerpt": "building an in-app timeline and I keep mixing up my own posts with everyone else's" },
+      { "n": 2, "handle": "mara", "quote": "stay deletable for an hour", "date": "May 30", "excerpt": "entries sit in a hold state and stay deletable for an hour before they go public" }
+    ],
+    "feedEntries": [
+      { "handle": "devon", "date": "May 29", "content": "Building an in-app timeline and I keep mixing up my own posts with everyone else's in the same list. Need a clean way to tell them apart." },
+      { "handle": "mara", "date": "May 30", "content": "Spent the day on staging-then-publish for our feed; entries sit in a hold state and stay deletable for an hour before they go public. Wiring the timer was fiddly." },
+      { "handle": "kai", "date": "May 28", "content": "Got an OAuth refresh loop working for our integrations." }
+    ],
+    "workLog": "router-daybook: changed collect to pull since last post via feed timestamp, clamped to 7-day floor, walked codex per-day dirs. Added in-app feed view with mine flag from cohortFeed. Files: transcripts.js, router.js, main.js, app.js, styles.css."
+  },
+  "expect": { "gatesPassed": true, "minScore": 14 }
+}

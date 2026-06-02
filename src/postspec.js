@@ -1,0 +1,74 @@
+'use strict';
+
+// ─────────────────────────────────────────────────────────────────────────
+// LOCKED post contract (v1).
+//
+// The single machine-readable source of truth for what a Router daily post
+// must be. Both sides read from here so they can never drift:
+//   • src/reflect.js  — builds the generator prompt from these constants.
+//   • evals/gates.js  — checks a drafted post against them.
+//
+// Changing anything here is a deliberate version bump (RUBRIC_VERSION), not a
+// casual edit — the eval framework and the prompt move together or not at all.
+// The prose companion is evals/rubric.md.
+// ─────────────────────────────────────────────────────────────────────────
+
+// v2: connections must be TRULY USEFUL or omitted. A forced/plausible @-mention
+// now scores worse than none, and restraint (no mention when nothing fits) is
+// full marks. See evals/rubric.md D1/D3.
+const RUBRIC_VERSION = 2;
+
+// The body lead-ins, in required order. Offering is optional (omit when there's
+// genuinely no one to help); every other lead-in is required, and the body must
+// END on the Asking section.
+const LEAD_INS = ['Wins', 'Struggles', 'Insight', 'Offering', 'Asking'];
+const REQUIRED_LEAD_INS = ['Wins', 'Struggles', 'Insight', 'Asking'];
+const OPTIONAL_LEAD_INS = ['Offering'];
+const FINAL_LEAD_IN = 'Asking';
+
+// Body word count window. The prompt aims for ~220–360; the gate is a little
+// wider so a good post isn't failed for a few words either way.
+const LENGTH = { min: 180, max: 400 };
+
+// Scored dimensions D1–D6 are each 0–3 → 18 max. A post passes the locked eval
+// iff all hard gates pass AND the judge score is at least THRESHOLD.
+const SCORE_MAX = 18;
+const THRESHOLD = 14;
+
+// ── Banned phrasings (G3) ─────────────────────────────────────────────────
+// The hedge / vague-verb / blanket-openness register that reads as lame and
+// empty. Each entry is a case-insensitive regex tested against the post text.
+// `label` is what the gate reports when it fires. reflect.js renders `example`
+// into the prompt's "BANNED PHRASINGS" list so the generator avoids the exact
+// same set the gate enforces.
+const BANNED = [
+  { label: 'compare notes',        example: 'compare notes',          re: /\bcompare notes\b/i },
+  { label: 'pick your brain',      example: 'pick your brain',        re: /\bpick (?:your|his|their) brain\b/i },
+  { label: 'swap ideas',           example: 'swap ideas',             re: /\bswap(?:ping)? ideas\b/i },
+  { label: 'trade notes',          example: 'trade notes',            re: /\btrade notes\b/i },
+  { label: 'sync up',              example: 'sync up',                re: /\bsync(?:ing)? up\b/i },
+  { label: 'jam on',               example: 'jam on',                 re: /\bjam(?:ming)? on\b/i },
+  { label: 'happy to chat',        example: 'happy to chat',          re: /\bhappy to (?:chat|talk|connect)\b/i },
+  { label: 'down to chat',         example: 'always down to talk',    re: /\b(?:always )?down to (?:chat|talk)\b/i },
+  { label: 'open to collaboration',example: 'open to collaboration',  re: /\bopen to (?:collaborat\w+|chatting|connecting)\b/i },
+  { label: 'would be glad to',     example: 'would be glad to…',      re: /\bwould (?:be glad|love) to\b/i },
+  { label: 'would welcome',        example: 'would welcome',          re: /\bwould welcome\b/i },
+  { label: 'reach out',            example: 'feel free to reach out', re: /\b(?:feel free to |do )?reach out\b/i },
+  { label: 'explore synergies',    example: 'explore synergies',      re: /\b(?:explore|find) synerg\w+/i },
+  { label: 'if anyone has/is',     example: 'if anyone has built…',   re: /\bif anyone (?:has|is|'s|wants|knows)\b/i },
+  { label: 'should anyone',        example: 'should anyone be…',      re: /\bshould anyone\b/i },
+  { label: 'let me know',          example: 'let me know if…',        re: /\blet (?:me|him|them) know if\b/i },
+];
+
+// True iff `text` contains any banned phrasing; returns the matches found.
+function findBanned(text) {
+  const s = String(text || '');
+  return BANNED.filter((b) => b.re.test(s)).map((b) => b.label);
+}
+
+module.exports = {
+  RUBRIC_VERSION,
+  LEAD_INS, REQUIRED_LEAD_INS, OPTIONAL_LEAD_INS, FINAL_LEAD_IN,
+  LENGTH, SCORE_MAX, THRESHOLD,
+  BANNED, findBanned,
+};

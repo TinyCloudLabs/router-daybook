@@ -1,0 +1,29 @@
+{
+  "name": "lame — banned hedge register, vague offer/ask",
+  "input": {
+    "name": "James",
+    "dateLabel": "Tuesday, June 2",
+    "myHandle": "specularist",
+    "post": [
+      "Router digest · Tuesday, June 2",
+      "Worked on the daybook app and the feed view.",
+      "",
+      "Wins — James made progress on router-daybook today. The collection window was reworked so the digest covers a more useful span of time, and a feed surface was added inside the app so there is somewhere to look without leaving for the browser. Both went in without much drama and the app still launches cleanly.",
+      "Struggles — Some of the date handling was awkward and took longer than expected, mostly around what to do when there is nothing recorded yet. Nothing blocking, just fiddly. The renderer needed a couple of restarts to pick up changes since there is no hot reload.",
+      "Insight — Reusing data the system already has tends to beat inventing a new place to store state. That held up again today and is worth remembering for the next feature.",
+      "Offering — James is open to collaboration and would be glad to compare notes with anyone building similar tools. If anyone has been working in this space, feel free to reach out and we can swap ideas about the general approach.",
+      "Asking — If anyone has thoughts on feeds or timelines, let me know if you want to chat. Always happy to talk through ideas and pick your brain on what has worked for you."
+    ],
+    "footnotes": [],
+    "feedEntries": [
+      { "handle": "devon", "date": "May 29", "content": "Building an in-app timeline and I keep mixing up my own posts with everyone else's in the same list." },
+      { "handle": "mara", "date": "May 30", "content": "Staging-then-publish for our feed; entries stay deletable for an hour before they go public." }
+    ],
+    "workLog": "router-daybook: reworked collect window, added in-app feed view."
+  },
+  "expect": {
+    "gatesPassed": false,
+    "gateFails": ["G3"],
+    "dimMax": [["d1", 1], ["d2", 1], ["d4", 1]]
+  }
+}

@@ -1,0 +1,27 @@
+{
+  "name": "plumbing — reports session mechanics, not the work",
+  "input": {
+    "name": "James",
+    "dateLabel": "Tuesday, June 2",
+    "myHandle": "specularist",
+    "post": [
+      "Router digest · Tuesday, June 2",
+      "A session on the daybook with the assistant.",
+      "",
+      "Wins — James started the day by recording a voice note and waiting for it to transcribe through the local Whisper sidecar, then dictated a long prompt to the assistant. The assistant searched the filesystem, read several of its own earlier transcripts, and opened the project files one by one before getting oriented. After a few rounds of the assistant narrating what it was about to read, things were set up.",
+      "Struggles — A couple of the assistant's tool calls timed out and had to be retried, and one prompt had to be re-dictated because the first transcription came out garbled. James also had to restart the renderer twice because the window did not pick up the changes, and the assistant spent a while grepping for the right file before editing.",
+      "Insight — Re-running the assistant after an edit reloads the whole transcript, which is slower than expected, so warming things up early helped the session feel faster overall.",
+      "Offering — James can walk anyone through how he sets up these assistant sessions, including the voice-note flow and how he gets the model oriented at the start of a run.",
+      "Asking — James wants a faster way to get the assistant pointed at the right files at the start of a session, so it spends less time reading transcripts and searching the filesystem before doing anything useful."
+    ],
+    "footnotes": [],
+    "feedEntries": [
+      { "handle": "devon", "date": "May 29", "content": "Building an in-app timeline and keep mixing up my own posts with everyone else's." }
+    ],
+    "workLog": "router-daybook session: transcribe voice note, dictate prompt, assistant reads transcripts and greps files, restarts, edits transcripts.js and app.js."
+  },
+  "expect": {
+    "gatesPassed": true,
+    "dimMax": [["d5", 1]]
+  }
+}

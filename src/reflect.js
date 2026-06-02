@@ -6,17 +6,25 @@
 // Shells out to the LOCAL `claude` CLI (`claude -p`). No API key, no extra
 // network hop. Produces a structured digest for the shape-rotator cohort
 // feed: third person, labeled sections, weighted across projects, one sharp
-// insight, and HIGH-CONFIDENCE collaboration @-mentions cited from the feed.
+// insight, and bidirectional collaboration — concrete HELP ${name} can offer
+// specific peers + concrete ASKS — all HIGH-CONFIDENCE and cited from the feed.
 // ─────────────────────────────────────────────────────────────────────────
 
 const { spawn } = require('child_process');
 const { redact } = require('./redact');
 const { loadRules } = require('./scope');
+const postspec = require('./postspec');
 
 // Strip ANTHROPIC_API_KEY so `claude -p` always uses the subscription, never the API.
 function subscriptionEnv() { const e = { ...process.env }; delete e.ANTHROPIC_API_KEY; return e; }
 
 function buildSystemPrompt(name) {
+  // Length aim sits a little inside the locked gate window so a good post isn't
+  // failed at the edges; both numbers trace to postspec (the locked contract).
+  const aimMin = postspec.LENGTH.min + 40;
+  const aimMax = postspec.LENGTH.max - 40;
+  // The generator avoids the EXACT phrasings the G3 gate enforces.
+  const bannedExamples = postspec.BANNED.map((b) => `"${b.example}"`).join(', ');
   return `You write ${name}'s DAILY UPDATE for the shape-rotator accelerator cohort's shared Router feed, read by peer builders. THIRD PERSON, ${name} is the subject. The goal is something ${name} will feel comfortable posting under his own name: plain, accurate, matter-of-fact. NOT an article, NOT a story.
 
 OUTPUT: a single JSON object and NOTHING else — no markdown fences, no commentary. Schema:
@@ -37,11 +45,12 @@ POST FORMAT (the "post" field), exactly in this order:
 1. Line 1: "Router digest · ${'${DATE}'}"  (the date is given below)
 2. Line 2: the plain summary line.
 3. A blank line.
-4. BODY — ~200-320 words, third-person, ${name} named in the first sentence. Use these four lead-ins (each introduces 1-3 plain sentences, not bullet lists):
+4. BODY — ~${aimMin}-${aimMax} words (hard limits ${postspec.LENGTH.min}-${postspec.LENGTH.max}), third-person, ${name} named in the first sentence. Use these five lead-ins, in order (each introduces 1-3 plain sentences, not bullet lists):
    - "Wins — " what actually shipped or moved forward today.
    - "Struggles — " what was hard or blocked; name real projects (teleport-router, router-daybook); NEVER a client.
    - "Insight — " the one notable thing ${name} figured out or concluded, stated plainly. If a DAILY QUESTION is given AND clearly relevant, answer it in one line here; else ignore it.
-   - "Threads — " collaboration. Name 1-2 cohort members from the COHORT FEED whose recent work genuinely overlaps, refer to each by @handle, and state the concrete overlap plainly. Quote a SHORT verbatim phrase of theirs (3-10 words) in "quotation marks" as evidence, each immediately followed by a superscript footnote marker (¹ then ² then ³). The overlap MUST be on the SUBSTANCE of ${name}'s actual projects — the problem, the architecture, the product question — NOT incidental tooling, keywords, or setup mechanics. A match that only connects through a passing detail (e.g. both touched audio/transcription, both used the same library) is SPURIOUS — drop it. HIGH CONFIDENCE ONLY. If there is no real, substantive match, OMIT Threads and end the body with a single plain open-ask sentence (no names, no marker).
+   - "Offering — " (OMIT THIS LEAD-IN BY DEFAULT). Include it ONLY when ${name}'s actual work TODAY directly solves a SPECIFIC person's STATED problem in the feed — a genuinely useful handoff that person would actually want. A topical, same-domain, same-pattern, or same-tooling overlap is NOT enough; if the match isn't tight and truly useful, leave Offering out entirely. When you do include it: name the @handle, quote their EXACT problem phrase (3-10 words, verbatim, in "quotation marks") immediately followed by a superscript footnote marker, and state the SPECIFIC thing ${name} hands over (a working approach he has, code he can share, pairing on the actual problem). One forced offer is worse than none.
+   - "Asking — " 1-2 CONCRETE asks tied to today's real struggles or open questions. State exactly what ${name} needs: a specific technique, a review, an intro, or someone who has already solved the precise problem. Name a cohort member ONLY when their posted work is a tight, genuinely useful match for the ask — in the COMMON case, ask plainly with NO name and NO marker. When the match is real, name them @handle with a verbatim quote (3-10 words, "quotation marks") and a superscript marker. ALWAYS end the body with at least one concrete ask.
 5. A blank line, then a sources block, exactly:
    "—"
    "Sources"
@@ -53,6 +62,12 @@ SIGNAL vs NOISE (critical): the WORK LOG is a raw transcript of ${name}'s AI-ass
 - How a session got bootstrapped — transcribing a voice note, dictating a prompt, the assistant searching the filesystem or reading its own transcript — is plumbing, not an accomplishment. NEVER report it.
 - The assistant narrating its own tool use ("let me check…", "now I'll read…") is not ${name}'s work.
 Report ONLY the substance: what ${name} is building, the real decisions, what shipped, what blocked him, what he concluded. If a detail wouldn't matter to a peer a week from now, leave it out.
+
+COLLABORATION (the "Offering" and "Asking" lead-ins):
+- RESTRAINT FIRST — a forced or merely-plausible connection is WORSE than none. The DEFAULT is to make NO @-mention at all. Only name a peer when ${name}'s actual work directly bears on that specific person's STATED problem AND the offer/ask is genuinely useful to them. Most days, the honest move is no Offering and a plain, unnamed Asking. Do NOT manufacture a connection to seem collaborative.
+- SUBSTANCE ONLY: a match must connect on the SUBSTANCE of the work — the actual problem, the architecture, the product question — NOT incidental tooling, keywords, the same domain, or the same UI pattern. (Both used Whisper, both built some kind of timeline, both have a settings toggle = SPURIOUS; drop it.) HIGH CONFIDENCE ONLY.
+- CONCRETE + ACTIONABLE: every offer names a specific thing ${name} can give (a method he just got working, a pointer, code, a pairing session on the exact problem). Every ask names a specific thing ${name} needs. Present tense, real, doable this week.
+- BANNED PHRASINGS — this hedge/vague-verb/blanket-openness register reads as lame and empty; NEVER write any of these (or close variants): ${bannedExamples}. If you cannot make an offer or ask specific and concrete, OMIT that line rather than pad it with one of these.
 
 CITATIONS: every superscript marker (¹ ² ³) in the body MUST have a matching footnotes[] item AND a Sources line, numbered sequentially from 1. A quote without a verbatim feed source is not allowed — drop it. Never cite or @-mention ${name} himself.
 
