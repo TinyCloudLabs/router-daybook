@@ -8,11 +8,11 @@ const os = require('os');
 const readline = require('readline');
 const { spawn } = require('child_process');
 
-const { collectToday, collectRecent, collectMostRecentDay, claudeDirToPath } = require('./transcripts');
+const { collectToday, collectSinceLastPost, collectRecent, collectMostRecentDay, claudeDirToPath } = require('./transcripts');
 const { generate, extractPatterns } = require('./reflect');
 const scopeMod = require('./scope');
 const { redact } = require('./redact');
-const { post, fetchFeed, whoami, loadConfig, hasConfig, joinWithInvite, DEFAULT_SERVER } = require('./router');
+const { post, fetchFeed, cohortFeed, lastOwnPostMs, whoami, loadConfig, hasConfig, joinWithInvite, DEFAULT_SERVER } = require('./router');
 const learning = require('./preferences');
 const intro = require('./intro');
 const link = require('./link');
@@ -239,7 +239,12 @@ ipcMain.handle('welcome-message', async () => {
 // ── IPC: gather today's activity + resolve the venue ──────────────────────
 ipcMain.handle('collect', async () => {
   const scope = scopeMod.loadScope();
-  const result = await collectToday(new Date(), scope);
+  // Anchor the window to your last Router post (the Router records every post
+  // with a date, so this is correct on any machine without a local marker).
+  // Unreachable feed → null → collectSinceLastPost falls back to the last 7 days.
+  let lastPostMs = null;
+  try { lastPostMs = await lastOwnPostMs(); } catch { /* offline → fallback */ }
+  const result = await collectSinceLastPost(scope, lastPostMs);
   let server = DEFAULT_SERVER;
   let configError = null;
   try {
@@ -331,6 +336,8 @@ ipcMain.handle('clear-learned', async () => { learning.clearAll(); return { ok: 
 // passing through is a true no-op. Runs the SAME rules as both prior scrubs.
 ipcMain.handle('post', async (_evt, content) => {
   const { masked } = redact(content, scopeMod.loadRules());
+  // No local bookkeeping needed: the post lands on the Router with a timestamp,
+  // and the next collect reads it back via lastOwnPostMs as the new anchor.
   return await post(masked);
 });
 
@@ -366,6 +373,10 @@ ipcMain.handle('link-peer-remove', async (_evt, { target } = {}) => link.removeP
 ipcMain.handle('open-feed', async (_evt, server) => {
   await shell.openExternal((server || DEFAULT_SERVER).replace(/\/$/, ''));
 });
+
+// The in-app cohort feed: your posts + the room's, newest first (see
+// router.cohortFeed). Read-only; the renderer marks your own.
+ipcMain.handle('feed:get', async (_evt, opts = {}) => cohortFeed(opts || {}));
 
 // ══════════════════════════════════════════════════════════════════════════
 // Scope + redaction (Invariants I1–I5). main.js owns ONLY the IPC wiring; the

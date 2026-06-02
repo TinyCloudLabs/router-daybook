@@ -19,6 +19,7 @@
         <span class="wordmark">Router</span>
       </div>
       <div class="head-right">
+        <button class="link head-link" id="open-feedview" title="The cohort feed">❏ Feed</button>
         <button class="link head-link" id="open-scope" title="What the Router can see">◈ Scope</button>
         <button class="link head-link" id="open-link" title="Link another computer">⛓ Link</button>
         <span class="date" id="date">—</span>
@@ -150,7 +151,8 @@
       <div class="glyph check">✓</div>
       <p class="status">Staged to the Router.</p>
       <p class="sub" id="success-sub">It’s held in staging and stays deletable for a while before it goes public.</p>
-      <button class="btn primary" id="open-feed">Open the feed →</button>
+      <div class="feed-list success-feed" id="success-feed"></div>
+      <button class="btn ghost" id="open-feed">Open the feed in your browser →</button>
     </section>
 
     <!-- LINK: connect another computer running Router -->
@@ -208,6 +210,17 @@
           </div>
         </div>
       </div>
+    </section>
+
+    <!-- FEED: the cohort feed in-app — your posts + the room's -->
+    <section class="card feedview" id="feed" hidden>
+      <div class="reflect-head">
+        <span class="eyebrow">❏ Feed</span>
+        <button class="link" id="feed-back">← back</button>
+      </div>
+      <div class="scope-headline">The cohort feed</div>
+      <div class="scope-sub">Your posts and the room’s, newest first.</div>
+      <div class="feed-list" id="feed-list"></div>
     </section>
 
     <!-- SCOPE: pick which repos the Router can see -->

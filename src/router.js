@@ -103,6 +103,84 @@ async function fetchFeed({ days = 14, limit = 60 } = {}) {
   return { ok: true, entries, server, myHandle, myPseudonym };
 }
 
+// Epoch millis of YOUR most recent post on the Router, or null if you have
+// none / the feed is unreachable. This is the authoritative "last update"
+// anchor for the daily window: the Router already records every post with a
+// date, so it's correct on any machine/build without a local marker. Unlike
+// fetchFeed this does NOT filter out your own entries — it looks for exactly
+// them. `limit` is generous so a busy cohort doesn't bury your last post.
+async function lastOwnPostMs({ limit = 200 } = {}) {
+  let key, server;
+  try { ({ key, server } = loadConfig()); } catch { return null; }
+  let res;
+  try {
+    res = await fetch(`${server}/api/entries?key=${encodeURIComponent(key)}&limit=${limit}`);
+  } catch {
+    return null; // offline — caller falls back to its default window
+  }
+  if (!res.ok) return null;
+  let body;
+  try { body = JSON.parse(await res.text()); } catch { return null; }
+
+  const me = await whoami();
+  const myHandle = me?.handle || null;
+  const myPseudonym = me?.pseudonym || null;
+  if (!myHandle && !myPseudonym) return null;
+
+  const raw = Array.isArray(body) ? body : (body.entries || []);
+  let latest = null;
+  for (const e of raw) {
+    if (!e) continue;
+    const mine = (myHandle && e.handle === myHandle) || (myPseudonym && e.pseudonym === myPseudonym);
+    if (!mine) continue;
+    const ts = e.timestamp;
+    if (typeof ts === 'number' && isFinite(ts) && (latest === null || ts > latest)) latest = ts;
+  }
+  return latest;
+}
+
+// The cohort feed for in-app display: YOUR posts AND everyone else's, newest
+// first, each tagged `mine` so the UI can mark your own. Unlike fetchFeed (which
+// drops your posts because you don't collaborate with yourself), this keeps them
+// — it's a reading surface, not a collaboration-matching one. Returns
+// { ok, server, myHandle, entries:[{ handle, pseudonym, content, date, timestamp, id, mine }] }.
+async function cohortFeed({ days = 30, limit = 100 } = {}) {
+  let key, server;
+  try { ({ key, server } = loadConfig()); } catch (e) { return { ok: false, error: e.message, entries: [] }; }
+  let res;
+  try {
+    res = await fetch(`${server}/api/entries?key=${encodeURIComponent(key)}&limit=${limit}`);
+  } catch (e) {
+    return { ok: false, error: 'Could not reach the cohort feed: ' + e.message, entries: [] };
+  }
+  const text = await res.text();
+  if (!res.ok) return { ok: false, error: `Feed returned ${res.status}`, entries: [] };
+  let body;
+  try { body = JSON.parse(text); } catch { return { ok: false, error: 'Bad feed JSON', entries: [] }; }
+
+  const me = await whoami();
+  const myHandle = me?.handle || null;
+  const myPseudonym = me?.pseudonym || null;
+
+  const raw = Array.isArray(body) ? body : (body.entries || []);
+  const cutoff = Date.now() - days * 24 * 60 * 60 * 1000;
+
+  const entries = raw
+    .filter((e) => e && e.content && (e.timestamp ?? 0) >= cutoff)
+    .map((e) => ({
+      handle: e.handle || null,
+      pseudonym: e.pseudonym || null,
+      content: String(e.content),
+      date: shortDate(e.timestamp),
+      timestamp: e.timestamp ?? 0,
+      id: e.id,
+      mine: !!((myHandle && e.handle === myHandle) || (myPseudonym && e.pseudonym === myPseudonym)),
+    }))
+    .sort((a, b) => b.timestamp - a.timestamp);
+
+  return { ok: true, entries, server, myHandle, myPseudonym };
+}
+
 // Is there a usable identity yet?
 function hasConfig() {
   try { return !!JSON.parse(fs.readFileSync(RC_PATH, 'utf8')).key; } catch { return false; }
@@ -170,4 +248,4 @@ async function post(content) {
   };
 }
 
-module.exports = { post, fetchFeed, whoami, loadConfig, hasConfig, saveConfig, joinWithInvite, DEFAULT_SERVER };
+module.exports = { post, fetchFeed, cohortFeed, lastOwnPostMs, whoami, loadConfig, hasConfig, saveConfig, joinWithInvite, DEFAULT_SERVER };

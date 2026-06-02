@@ -24,6 +24,8 @@ const readline = require('readline');
 const { redact } = require('./redact');
 const scopeMod = require('./scope');
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
 const HOME = os.homedir();
 const CLAUDE_PROJECTS = path.join(HOME, '.claude', 'projects');
 const CODEX_SESSIONS = path.join(HOME, '.codex', 'sessions');
@@ -420,23 +422,24 @@ function buildDigest(projects, dateLabel, rules) {
   return { digest, findings, held };
 }
 
-// Public: gather today's activity into the contract's collect shape.
+// Core collector over an arbitrary [start, end) window. Does discover → gate →
+// read → conv-excludes → buildDigest → stats, returning the contract's collect
+// shape: { stats, hasActivity, digest, excludedCount, redactions, held }.
 //
-// Signature (FROZEN): collectToday(date = new Date(), scope = null) =>
-//   { stats, hasActivity, digest, excludedCount, redactions, held }
-//
-// Backward-compat: scope defaults to null; when null we load it ourselves so
-// existing callers (collectMostRecentDay, the standalone runner) keep working.
-// The return is a SUPERSET of the old keys — existing destructuring of
-// { stats, hasActivity, digest } is unaffected.
-async function collectToday(date = new Date(), scope = null) {
-  const bounds = dayBounds(date);
+// Codex sessions are stored under per-day directories (~/.codex/sessions/Y/M/D),
+// so the caller passes `codexDates` — one Date per calendar day the window
+// touches — to enumerate them (Claude discovery is already window-general via
+// mtime). `dateLabel` is the human caption fed to the digest header + stats.
+async function collectWindow(bounds, scope, { codexDates = [new Date()], dateLabel = '' } = {}) {
   const sc = (scope && typeof scope === 'object') ? scope : scopeMod.loadScope();
   const rules = scopeMod.loadRules();
 
   // (1) Discover candidate full paths WITHOUT reading message bodies.
   const claudeCandidates = discoverClaudeCandidates(bounds);
-  const codexCandidates = await discoverCodexCandidates(bounds, date);
+  let codexCandidates = [];
+  for (const d of codexDates) {
+    codexCandidates = codexCandidates.concat(await discoverCodexCandidates(bounds, d));
+  }
   const candidates = [...claudeCandidates, ...codexCandidates];
 
   // (2) Deny-by-default allow set keyed on FULL path (I3).
@@ -452,7 +455,9 @@ async function collectToday(date = new Date(), scope = null) {
   // (3) Read only allowed sources.
   const projects = new Map();
   await collectClaude(projects, bounds, allow);
-  await collectCodex(projects, bounds, date, allow);
+  for (const d of codexDates) {
+    await collectCodex(projects, bounds, d, allow);
+  }
 
   // (4) Drop per-conversation excludes (I3) — real because record() carried
   // sessionId. A project whose every recorded session is excluded is dropped.
@@ -470,10 +475,6 @@ async function collectToday(date = new Date(), scope = null) {
       projects.delete(key);
     }
   }
-
-  const dateLabel = date.toLocaleDateString('en-US', {
-    weekday: 'long', month: 'long', day: 'numeric',
-  });
 
   // (5) Build the digest with redaction (I1) + fail-closed HOLD (I5).
   const { digest, findings, held } = buildDigest(projects, dateLabel, rules);
@@ -509,6 +510,48 @@ async function collectToday(date = new Date(), scope = null) {
     redactions: findings,
     held,
   };
+}
+
+// Public: gather a single local day's activity into the collect shape.
+//
+// Signature (FROZEN): collectToday(date = new Date(), scope = null) =>
+//   { stats, hasActivity, digest, excludedCount, redactions, held }
+//
+// Backward-compat: scope defaults to null; when null collectWindow loads it
+// itself, so existing callers (collectMostRecentDay, scope:preview, the
+// standalone runner) keep working. The return is a SUPERSET of the old keys.
+async function collectToday(date = new Date(), scope = null) {
+  const dateLabel = date.toLocaleDateString('en-US', {
+    weekday: 'long', month: 'long', day: 'numeric',
+  });
+  return collectWindow(dayBounds(date), scope, { codexDates: [date], dateLabel });
+}
+
+// Public: gather everything SINCE your last post to the Router, capped at the
+// last 7 days. This is what the daily-review `collect` flow uses instead of a
+// fixed local-midnight day, so a digest covers exactly the gap since you last
+// shared. Same return shape as collectToday.
+//
+// `lastPostMs` is the anchor — the epoch-ms timestamp of your most recent
+// Router post (see router.lastOwnPostMs), passed in by the caller so this
+// module stays network-free and standalone-runnable. The start is clamped to a
+// 7-day floor: no anchor (never posted / offline), a stale one (> 7 days ago),
+// or a future/clock-skewed one all fall back to "the last 7 days". The label
+// reflects which window was used so the digest header + UI read honestly.
+async function collectSinceLastPost(scope = null, lastPostMs = null) {
+  const now = Date.now();
+  const floor = now - 7 * DAY_MS;
+  const usingAnchor = typeof lastPostMs === 'number' && lastPostMs > floor && lastPostMs <= now;
+  const start = usingAnchor ? lastPostMs : floor;
+  const bounds = { start, end: now + 60 * 1000 };
+
+  // One Date per calendar day the window touches, for Codex's per-day dirs.
+  const dayCount = Math.max(1, Math.ceil((now - start) / DAY_MS) + 1);
+  const codexDates = [];
+  for (let i = 0; i < dayCount; i++) codexDates.push(new Date(now - i * DAY_MS));
+
+  const dateLabel = usingAnchor ? 'since your last post' : 'the last 7 days';
+  return collectWindow(bounds, scope, { codexDates, dateLabel });
 }
 
 // Public: gather a wider window of activity (for the self-introduction), so
@@ -623,7 +666,7 @@ function digestFromRawFiles(files, label = 'recent work', rules = scopeMod.loadR
   };
 }
 
-module.exports = { collectToday, collectRecent, collectMostRecentDay, dayBounds, digestFromRawFiles, claudeDirToPath };
+module.exports = { collectToday, collectSinceLastPost, collectRecent, collectMostRecentDay, dayBounds, digestFromRawFiles, claudeDirToPath };
 
 // Allow `node src/transcripts.js` for quick inspection during development.
 // Run standalone with a PERMISSIVE/empty scope so dev inspection isn't blocked

@@ -54,7 +54,12 @@ const els = {
   fntip: $('fntip'),
   success: $('success'),
   successSub: $('success-sub'),
+  successFeed: $('success-feed'),
   openFeed: $('open-feed'),
+  openFeedView: $('open-feedview'),
+  feed: $('feed'),
+  feedBack: $('feed-back'),
+  feedList: $('feed-list'),
   actions: $('actions'),
   postingAs: $('posting-as'),
   skip: $('skip'),
@@ -104,11 +109,15 @@ let preview = null;             // { post, headline, postFindings, readFiles, ex
 let findingById = {};           // postFindings keyed by id, for tooltips + local reveal
 let scopeState = null;          // last scope:get payload (for the #scope manager)
 let scopeReturnView = 'reflect';// where ← back returns to from #scope
+let feedReturnView = 'reflect'; // where ← back returns to from #feed
 
 const SUP = { '¹': 1, '²': 2, '³': 3, '⁴': 4, '⁵': 5, '⁶': 6, '⁷': 7, '⁸': 8, '⁹': 9 };
 
+let _view = 'loading';
+const currentView = () => _view;
 function setView(view) {
-  for (const k of ['connect', 'welcome', 'interview', 'loading', 'empty', 'error', 'reflect', 'success', 'link', 'scope']) {
+  _view = view;
+  for (const k of ['connect', 'welcome', 'interview', 'loading', 'empty', 'error', 'reflect', 'success', 'link', 'scope', 'feed']) {
     els[k].hidden = k !== view;
   }
   els.actions.hidden = view !== 'reflect';
@@ -765,10 +774,10 @@ async function run() {
   mode = 'digest';
   els.eyebrow.textContent = 'Cohort digest';
   els.post.textContent = 'Post to cohort →';
-  els.skip.textContent = 'Skip today';
+  els.skip.textContent = 'Skip';
   els.fb.placeholder = 'e.g. too wordy, just the facts · drop the Insight line · cut the @-mention · less about the plumbing';
   setView('loading');
-  els.loadingText.textContent = 'Reading today’s sessions…';
+  els.loadingText.textContent = 'Reading sessions since your last post…';
   let collected;
   try {
     collected = await window.daybook.collect();
@@ -816,7 +825,7 @@ function showEmpty(collected) {
       'Nothing to post means nothing leaves. Open Scope to let the Router see a repo when you\'re ready.';
     els.emptyOpenScope.hidden = false;
   } else {
-    els.emptyStatus.textContent = 'No Claude or Codex activity today — yet.';
+    els.emptyStatus.textContent = 'No new Claude or Codex activity since your last post — yet.';
     els.emptySub.textContent = 'Come back after you’ve done some work and I’ll have a reflection ready.';
     els.emptyOpenScope.hidden = true;
   }
@@ -892,6 +901,8 @@ async function doPost() {
     els.successSub.textContent =
       `${what} as ${who} to ${hostLabel(res.server)}. It’s held in staging and stays deletable for a while before it goes public.`;
     setView('success');
+    // Show the feed you just joined — your post and the room's, newest first.
+    loadFeed(els.successFeed, { limit: 8, emptyMsg: 'Your post is staged — it’ll appear here once it’s live.' });
   } catch (e) {
     fail(e.message || String(e));
   } finally {
@@ -1000,6 +1011,66 @@ function repoRow(r, included) {
 els.openScope.addEventListener('click', () => showScope('reflect'));
 els.scopeBack.addEventListener('click', () => setView(scopeReturnView));
 els.scopeSave.addEventListener('click', () => setView(scopeReturnView));
+
+// ── cohort feed (#feed + inline on success) ─────────────────────────────────
+// One reading surface: your posts and the room's, newest first, yours marked.
+// Renders into any container so the persistent view and the post-success card
+// share the same row markup.
+function feedRow(e) {
+  const row = document.createElement('div');
+  row.className = 'feed-item' + (e.mine ? ' feed-mine' : '');
+  const who = e.mine ? 'you' : (e.handle ? '@' + e.handle : (e.pseudonym || 'someone'));
+  const head = document.createElement('div');
+  head.className = 'feed-item-head';
+  head.innerHTML =
+    `<span class="feed-who">${escapeHtml(who)}</span>` +
+    `<span class="feed-date">${escapeHtml(e.date || '')}</span>`;
+  const body = document.createElement('div');
+  body.className = 'feed-item-body';
+  body.textContent = e.content || '';
+  row.appendChild(head);
+  row.appendChild(body);
+  return row;
+}
+
+// Fetch + paint the feed into `container`. `limit` caps how many rows show
+// (the success card shows a short peek; the full view shows more). Failures and
+// emptiness render a calm one-liner rather than throwing.
+async function loadFeed(container, { limit = 50, emptyMsg = 'No posts in the feed yet.' } = {}) {
+  if (!container) return;
+  container.innerHTML = '<div class="feed-empty">Loading the feed…</div>';
+  let res;
+  try { res = await window.daybook.getFeed({ days: 30, limit: 100 }); }
+  catch (e) { res = { ok: false, error: e.message || String(e) }; }
+  container.innerHTML = '';
+  if (!res || !res.ok) {
+    const err = document.createElement('div');
+    err.className = 'feed-empty';
+    err.textContent = (res && res.error) ? res.error : 'Could not reach the feed.';
+    container.appendChild(err);
+    return;
+  }
+  const entries = (res.entries || []).slice(0, limit);
+  if (!entries.length) {
+    const empty = document.createElement('div');
+    empty.className = 'feed-empty';
+    empty.textContent = emptyMsg;
+    container.appendChild(empty);
+    return;
+  }
+  for (const e of entries) container.appendChild(feedRow(e));
+}
+
+async function showFeed(returnTo) {
+  // Return to where we came from, but only if it's a stable surface — never
+  // back into a transient/onboarding view.
+  feedReturnView = ['reflect', 'success', 'empty'].includes(returnTo) ? returnTo : 'reflect';
+  setView('feed');
+  await loadFeed(els.feedList, { limit: 100 });
+}
+
+els.openFeedView.addEventListener('click', () => showFeed(currentView()));
+els.feedBack.addEventListener('click', () => setView(feedReturnView));
 
 // ── device link panel ───────────────────────────────────────────────────────
 let linkHostUnsub = null;

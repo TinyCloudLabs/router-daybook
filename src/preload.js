@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld('daybook', {
   getLearned: () => ipcRenderer.invoke('get-learned'),
   clearLearned: () => ipcRenderer.invoke('clear-learned'),
   openFeed: (server) => ipcRenderer.invoke('open-feed', server),
+  getFeed: (opts) => ipcRenderer.invoke('feed:get', opts),
   linkHostStart: (perms) => ipcRenderer.invoke('link-host-start', { perms }),
   linkHostStop: () => ipcRenderer.invoke('link-host-stop'),
   linkHostInfo: () => ipcRenderer.invoke('link-host-info'),
