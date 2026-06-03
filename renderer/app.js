@@ -25,7 +25,7 @@ function startDiscoBall(canvas) {
     ctx.clearRect(0, 0, S, S);
     // solid sphere base so gaps between tiles read as a ball
     const g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.35, R * 0.15, cx, cy, R);
-    g.addColorStop(0, 'rgba(150,135,205,0.6)'); g.addColorStop(1, 'rgba(36,26,66,0.55)');
+    g.addColorStop(0, 'rgba(64,66,84,0.96)'); g.addColorStop(1, 'rgba(14,14,22,0.94)');
     ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.fillStyle = g; ctx.fill();
     const vis = [];
     for (const f of facets) {
@@ -37,14 +37,23 @@ function startDiscoBall(canvas) {
       vis.push({ x: x0, y, z, cl, ph: f.ph, dw: f.dw });
     }
     vis.sort((a, b) => a.z - b.z);
+    // hard neon palette — quantized, no smooth gradient (glitch, not sparkle)
+    const GP = ['#00e6d2', '#ff7a00', '#b6ff1a', '#ff3030', '#0a6cff', '#ffd000'];
+    const dx = 1.1 + 0.7 * Math.sin(t * 3.3); // chromatic-aberration offset, breathing
     for (const d of vis) {
-      const px = cx + d.x * R, py = cy - d.y * R;
-      const fw = Math.max(1.1, R * d.dw * d.cl * 0.92), fh = Math.max(1.1, R * dh * 0.92);
-      const spark = 0.5 + 0.5 * Math.sin(t * 7 + d.ph * 4);
-      const b = Math.min(1, 0.28 + 0.4 * d.z + 0.65 * spark * d.z * d.z);
-      const r = Math.round(150 + 105 * b), gg = Math.round(128 + 112 * b), bl = Math.round(205 + 50 * b);
-      ctx.fillStyle = `rgba(${r},${gg},${bl},${0.5 + 0.5 * d.z})`;
-      ctx.fillRect(px - fw / 2, py - fh / 2, fw, fh);
+      let px = cx + d.x * R; const py = cy - d.y * R;
+      const fw = Math.max(1.3, R * d.dw * d.cl * 0.98), fh = Math.max(1.3, R * dh * 0.98);
+      // datamosh: a rare horizontal tear yanks a band of facets sideways
+      if (Math.sin(t * 7 + Math.floor(py / 5) * 1.7) > 0.965) px += (Math.sin(t * 90 + py) * 5) | 0;
+      // hard flicker between palette entries — digital, not a smooth shimmer
+      const ci = (Math.floor(d.ph * 6 + t * 2.6) + (Math.sin(t * 9 + d.ph * 5) > 0.9 ? 3 : 0)) % GP.length;
+      const x0 = px - fw / 2, y0 = py - fh / 2;
+      // RGB channel split: red/magenta ghost one way, cyan/blue the other
+      ctx.fillStyle = 'rgba(255,40,40,0.55)'; ctx.fillRect(x0 + dx, y0, fw, fh);
+      ctx.fillStyle = 'rgba(0,210,255,0.55)'; ctx.fillRect(x0 - dx, y0, fw, fh);
+      ctx.globalAlpha = 0.6 + 0.4 * d.z;
+      ctx.fillStyle = GP[ci]; ctx.fillRect(x0, y0, fw, fh);
+      ctx.globalAlpha = 1;
     }
     requestAnimationFrame(frame);
   }
@@ -411,11 +420,16 @@ async function ivNext() {
     // Ask the model for a natural follow-up — show the token count climb live.
     startThinking('Thinking of the next question…');
     const qa = ivTranscript.map(({ q, a }) => ({ q, a }));
-    const res = ivMode === 'refine'
-      ? await window.daybook.refineNext({ transcript: qa, draft: refineDraft })
-      : await window.daybook.introNext({ transcript: qa });
+    // If the question hangs or errors, DON'T trap them on the loading screen —
+    // fall through to writing from what we have so far.
+    let res;
+    try {
+      res = ivMode === 'refine'
+        ? await window.daybook.refineNext({ transcript: qa, draft: refineDraft })
+        : await window.daybook.introNext({ transcript: qa });
+    } catch { stopThinking(); return wrap(); }
     stopThinking();
-    if (res.done || !res.question) return wrap();
+    if (!res || res.done || !res.question) return wrap();
     ivTranscript.push({ q: res.question, hint: res.hint || '', a: '' });
     ivIndex++;
     showQuestion(ivIndex);
