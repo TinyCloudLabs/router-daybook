@@ -114,17 +114,17 @@ async function discoverProjects({ limit = 12 } = {}) {
 }
 
 function buildIntroSystem(name) {
-  return `You write ${name}'s SELF-INTRODUCTION for the shape-rotator accelerator cohort's shared Router feed, read by peer builders. THIRD PERSON — ${name} is the subject, named in the first sentence. NEVER first person: no "I", "I'm", "my", "we", "me", "myself" anywhere. Write as someone introducing ${name} to the cohort.
+  return `You write the SELF-INTRODUCTION for the person whose machine and Claude subscription are running this — refer to them by their REAL FIRST NAME (you know who they are; "${name}" is only a fallback if you genuinely don't). For the cohort's shared Router feed, read by peer builders. THIRD PERSON — the subject is named in the first sentence. NEVER first person: no "I", "I'm", "my", "we", "me", "myself" anywhere. Write as someone introducing them to the cohort.
 
 OUTPUT: a single JSON object and NOTHING else — no fences, no commentary:
-{ "post": "the full introduction, ready to publish (markdown)" }
+{ "post": "the full introduction, ready to publish (PLAIN TEXT)" }
 
-STRUCTURE — markdown with "## " section headings, ~450-800 words:
-- OPEN with a vivid, exciting opening paragraph — a "call to adventure." In 3-5 sentences, capture the through-line and ambition of ${name}'s work and make the reader feel SEEN: name the real thing he's chasing, why it's hard, and why it matters / is part of something bigger. This paragraph should have ENERGY and momentum — it should be a pleasure to read and make ${name} feel recognized. It is the one place to be evocative. Stay grounded in the actual work: the excitement comes from the real substance and ambition, never from buzzwords or inflated claims.
-- ## What he's working on — the projects listed below, described plainly.
-- ## Focus right now — STRICTLY from what the author said in the INTERVIEW. If he didn't say, keep it to one plain sentence drawn from the most active work.
-- ## Background — only expertise that's actually evident from the work; do not invent.
-- ## Looking to connect on — STRICTLY from the author's INTERVIEW answers. List only people/topics HE named. You may @-mention a named person only if that exact handle appears in the COHORT FEED. If he named nothing, write one short, general sentence (e.g. an open invitation) or omit the section. NEVER invent or infer who he wants to connect with.
+STRUCTURE — PLAIN TEXT, NO markdown (no "#", no "*", no "_", no "\`"), ~400-700 words. Separate sections with a blank line; each labeled section starts with a short plain label and an em-dash, like the daily digest ("Working on — …"):
+- OPEN with a vivid, exciting opening paragraph (NO label) — a "call to adventure." In 3-5 sentences, capture the through-line and ambition of the subject's work and make the reader feel SEEN: name the real thing they're chasing, why it's hard, and why it matters / is part of something bigger. This paragraph should have ENERGY and momentum — a pleasure to read. It is the one place to be evocative. Stay grounded in the actual work; the excitement comes from real substance, never buzzwords or inflated claims.
+- "Working on — " the projects listed below, described plainly.
+- "Focus — " STRICTLY from what the author said in the INTERVIEW. If they didn't say, keep it to one plain sentence drawn from the most active work.
+- "Background — " only expertise actually evident from the work; do not invent.
+- "Looking to connect on — " STRICTLY from the author's INTERVIEW answers. List only people/topics they named. You may @-mention a named person only if that exact handle appears in the COHORT FEED. If they named nothing, write one short, general sentence (an open invitation) or omit the section. NEVER invent or infer who they want to connect with.
 
 CONNECTIONS RULE (critical): do NOT assert that any specific cohort member is an overlap, or that ${name} is "interested in" connecting on something, unless the author stated it in the INTERVIEW. The app must not guess his interests or relationships. When in doubt, leave it out.
 

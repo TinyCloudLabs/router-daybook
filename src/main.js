@@ -22,14 +22,17 @@ let session = {};  // last digest generation's inputs, reused for in-place revis
 let introCtx = {}; // onboarding context (history/projects/feed), reused across intro steps
 
 // Whose day is this? Third-person voice needs a first name.
+// The user's FIRST name — the intro and daily posts address them in the third
+// person ("James shipped…", never "James Barnes shipped…"). Sourced from
+// DAYBOOK_NAME or ~/.routerrc `name`; first token only; falls back to "James".
+function firstNameOf(s) { return String(s || '').trim().split(/\s+/)[0] || ''; }
 function resolveName() {
-  if (process.env.DAYBOOK_NAME) return process.env.DAYBOOK_NAME;
-  try {
-    const fs = require('fs');
-    const rc = JSON.parse(fs.readFileSync(path.join(require('os').homedir(), '.routerrc'), 'utf8'));
-    if (rc.name) return rc.name;
-  } catch { /* ignore */ }
-  return 'James';
+  let raw = process.env.DAYBOOK_NAME || '';
+  if (!raw) {
+    try { raw = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.routerrc'), 'utf8')).name || ''; }
+    catch { /* ignore */ }
+  }
+  return firstNameOf(raw) || 'James';
 }
 
 function createWindow() {
@@ -211,7 +214,7 @@ function streamTokens() {
 // Step 2: a natural follow-up given the conversation so far (or done).
 ipcMain.handle('intro-next', async (_evt, { transcript }) => {
   if (!introCtx.name) throw new Error('Start the intro first.');
-  return await intro.nextQuestion({ ...introCtx, transcript: transcript || [], onChunk: streamTokens() });
+  return await intro.nextQuestion({ ...introCtx, transcript: transcript || [], timeoutMs: 60000, onChunk: streamTokens() });
 });
 
 // Step 3: write the full intro from the interview transcript.
@@ -358,6 +361,7 @@ ipcMain.handle('refine:next', async (_evt, { transcript, draft } = {}) => {
     purpose: REFINE_PURPOSE(name),
     goals: REFINE_GOALS,
     focus: draft || '',
+    timeoutMs: 60000,
     onChunk: streamTokens(),
   });
 });
