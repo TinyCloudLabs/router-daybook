@@ -38,7 +38,8 @@ OUTPUT: a single JSON object and NOTHING else — no markdown fences, no comment
       "quote": "the EXACT short phrase quoted in the body (3-10 words, verbatim from their entry)",
       "date": "human date of their entry, e.g. May 29",
       "excerpt": "~200-char surrounding excerpt from their entry, for context on hover" }
-  ]
+  ],
+  "firstQuestion": "ONE warm, specific question (≤20 words, addressed to ${name} as 'you') that invites him to sharpen THIS post in a short interview — the single most useful thing to nail down: what he most wants the cohort to weigh in on or get back from them, or a spot the draft gets wrong or thin. Plain and grounded in the actual draft, NOT generic. Empty string only if the post is genuinely complete with nothing worth asking."
 }
 
 POST FORMAT (the "post" field), exactly in this order:
@@ -117,6 +118,9 @@ function parseResult(out) {
         date: String(f.date || ''),
         excerpt: String(f.excerpt || ''),
       })).filter((f) => f.n > 0 && f.handle) : [],
+      // Bundled refine opener — shown under the draft as the "Refine in
+      // interview" prompt and used as Q1 so the interview opens instantly.
+      firstQuestion: String(obj.firstQuestion || '').trim(),
     };
   } catch {
     // Fallback: treat the whole output as the post text.
