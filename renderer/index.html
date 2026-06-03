@@ -26,7 +26,7 @@
       </div>
     </header>
 
-    <section class="stats" id="stats" hidden>
+    <section class="stats draft-stats" id="stats" hidden>
       <div class="stat"><span class="num" id="s-projects">0</span><span class="lbl">projects</span></div>
       <div class="stat"><span class="num" id="s-messages">0</span><span class="lbl">messages</span></div>
       <div class="stat"><span class="num" id="s-files">0</span><span class="lbl">files touched</span></div>
@@ -113,18 +113,26 @@
 
     <!-- REFLECTION -->
     <section class="card reflect" id="reflect" hidden>
-      <div class="reflect-head">
-        <span class="eyebrow" id="eyebrow">Cohort digest</span>
+      <div class="editor-wrap">
+        <div class="reflect-head">
+          <span class="eyebrow" id="eyebrow">Cohort digest</span>
+        </div>
+
+        <div class="quiet-banner" id="quiet" hidden>
+          <span>Quiet day — what's in scope didn't have much worth a cohort post. Nothing posts.</span>
+        </div>
+
+        <!-- the draft IS the editor — edit the text directly -->
+        <textarea id="editor" class="prose editor" spellcheck="true" placeholder="Your draft will appear here…"></textarea>
+
+        <!-- bundled refine opener: a question + CTA into the interview -->
+        <div class="refine-prompt" id="refine-prompt" hidden>
+          <p class="refine-q" id="refine-q"></p>
+          <button class="refine-cta" id="refine-cta">Refine in interview →</button>
+        </div>
+
+        <div class="meta-row" id="projlist"></div>
       </div>
-
-      <div class="quiet-banner" id="quiet" hidden>
-        🌙 <span>Quiet day — what's in scope didn't have much worth a cohort post. Nothing posts.</span>
-      </div>
-
-      <!-- the draft IS the editor — edit the text directly -->
-      <textarea id="editor" class="prose editor" spellcheck="true" placeholder="Your draft will appear here…"></textarea>
-
-      <div class="meta-row" id="projlist"></div>
     </section>
 
     <!-- SUCCESS -->
@@ -221,10 +229,11 @@
     <footer class="actions" id="actions" hidden>
       <div class="posting-as" id="posting-as"></div>
       <div class="act-row">
-        <button class="link" id="startover" title="Write a fresh draft">↻ Start over</button>
-        <button class="link improve" id="improve" title="Sharpen the draft in a short interview">✦ Improve…</button>
-        <button class="btn ghost" id="skip">Skip</button>
-        <button class="btn primary" id="post">Post to cohort →</button>
+        <button class="link" id="startover" title="Write a fresh draft">Start over</button>
+        <div class="buttons">
+          <button class="btn ghost" id="skip">Skip</button>
+          <button class="btn primary" id="post">Post to cohort →</button>
+        </div>
       </div>
     </footer>
   </main>

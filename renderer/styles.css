@@ -7,7 +7,7 @@
   --accent: #b79bff;
   --accent-2: #7c5cff;
   --card: rgba(255, 255, 255, 0.045);
-  --card-line: rgba(255, 255, 255, 0.09);
+  --card-line: rgba(255, 255, 255, 0.07);
   --ok: #5ad6a0;
   --warn: #ffcf6b;
   --mask: rgba(255, 255, 255, 0.14);
@@ -62,8 +62,12 @@ html, body {
 }
 .wordmark { font-weight: 600; letter-spacing: 0.2px; font-size: 15px; }
 .head-right { display: flex; align-items: center; gap: 14px; -webkit-app-region: no-drag; }
-.head-link { font-size: 12px; }
-.date { color: var(--ink-dim); font-size: 14px; font-variant: small-caps; letter-spacing: 0.4px; }
+.head-link { font-size: 12px; color: var(--ink-faint); transition: color 0.15s; }
+.head-link:hover { color: var(--ink-dim); }
+.date { color: var(--ink-faint); font-size: 13px; font-variant: small-caps; letter-spacing: 0.4px; flex-shrink: 0; }
+/* posting streak in the header date slot */
+.streak-n { color: var(--accent); font-weight: 700; font-variant: normal; font-size: 14px; }
+.streak-zero { color: var(--ink-faint); }
 
 /* link (device-to-device) */
 .linkview { display: flex; flex-direction: column; padding: 20px 22px; overflow-y: auto; }
@@ -95,7 +99,7 @@ html, body {
 .link-result { font-size: 12px; color: var(--ink-dim); line-height: 1.5; white-space: pre-wrap; max-height: 160px; overflow-y: auto; background: rgba(0,0,0,0.15); border-radius: 8px; padding: 8px 10px; }
 .link-result:empty { display: none; }
 
-/* ── stats ── */
+/* ── stats (card primitive — used elsewhere) ── */
 .stats { display: flex; gap: 10px; }
 .stat {
   flex: 1;
@@ -107,6 +111,37 @@ html, body {
 }
 .stat .num { font-size: 22px; font-weight: 650; line-height: 1; }
 .stat .lbl { font-size: 11px; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.7px; }
+
+/* ── draft stats: recessed, inline, borderless — never a row of cards.
+   Shares the editor's optical column (same max-width + centering). ── */
+.draft-stats {
+  gap: 18px;
+  max-width: 680px;
+  width: 100%;
+  margin: -6px auto 0;
+}
+.draft-stats .stat {
+  flex: none;
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0;
+  flex-direction: row;
+  align-items: baseline;
+  gap: 5px;
+}
+.draft-stats .stat .num {
+  font-size: 18px;
+  font-weight: 650;
+  color: var(--ink-dim);
+  line-height: 1;
+}
+.draft-stats .stat .lbl {
+  font-size: 10px;
+  color: var(--ink-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
 
 /* ── cards ── */
 .card {
@@ -131,7 +166,7 @@ html, body {
 }
 
 /* ── reflection card ── */
-.reflect { display: flex; flex-direction: column; padding: 20px 22px; }
+.reflect { display: flex; flex-direction: column; padding: 28px 32px; }
 .reflect-head {
   display: flex; align-items: center; justify-content: space-between;
   margin-bottom: 10px;
@@ -144,18 +179,32 @@ html, body {
 }
 .link:hover { color: var(--ink); }
 
+/* the draft's editor + meta share one optical reading column */
+.editor-wrap {
+  flex: 1; min-height: 0;
+  display: flex; flex-direction: column;
+  width: 100%; max-width: 680px; margin: 0 auto;
+}
+
+/* draft-only: a quieter, smaller eyebrow that recedes from the hero text */
+#reflect .reflect-head { margin-bottom: 8px; }
+#reflect .eyebrow {
+  font-size: 10px; letter-spacing: 1.2px; color: var(--ink-faint);
+}
+
 .prose {
   flex: 1; min-height: 0; width: 100%;
   background: transparent; border: none; outline: none; resize: none;
   color: var(--ink);
   font-family: var(--serif);
-  font-size: 17.5px; line-height: 1.62; letter-spacing: 0.1px;
+  font-size: 18.5px; line-height: 1.7; letter-spacing: 0.05px;
   user-select: text;
   overflow-y: auto;
+  padding: 2px 0;
 }
 .prose::placeholder { color: var(--ink-faint); }
-.prose::-webkit-scrollbar { width: 8px; }
-.prose::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.12); border-radius: 8px; }
+.prose::-webkit-scrollbar { width: 6px; }
+.prose::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 6px; }
 
 /* onboarding (first run) */
 .onboard {
@@ -265,14 +314,14 @@ body.recording .iv-actions { border-top-color: transparent; }
 }
 @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
 
-/* quiet-day banner */
+/* quiet-day banner — inline and recessed, not a card */
 .quiet-banner {
   display: flex; align-items: center; gap: 8px;
-  background: rgba(255, 207, 107, 0.1);
-  border: 1px solid rgba(255, 207, 107, 0.28);
-  color: var(--warn);
-  font-size: 12.5px; border-radius: 11px;
-  padding: 9px 12px; margin-bottom: 12px;
+  background: transparent;
+  border: none;
+  color: var(--ink-faint);
+  font-size: 13px; border-radius: 0;
+  padding: 0; margin-bottom: 12px;
 }
 
 /* article view (read-only, native markdown, hoverable citations) */
@@ -322,10 +371,27 @@ body.recording .iv-actions { border-top-color: transparent; }
 /* The draft IS the editor: a clean, borderless writing surface (inherits the
    serif/size/spacing of .prose). No box, no chrome — just the text. */
 .editor {
-  padding: 2px 0 8px;
   caret-color: var(--accent);
   tab-size: 2;
+  margin-bottom: 12px;
 }
+
+/* the bundled refine opener under the draft: a quiet question + a CTA in */
+.refine-prompt {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 18px;
+  padding-top: 13px; border-top: 1px solid var(--card-line);
+}
+.refine-q {
+  font-family: var(--serif); font-style: italic;
+  font-size: 15px; line-height: 1.5; color: var(--ink-dim);
+}
+.refine-cta {
+  -webkit-app-region: no-drag; flex-shrink: 0;
+  background: none; border: none; cursor: pointer;
+  font-family: var(--sans); font-size: 13px; font-weight: 600;
+  color: var(--accent); transition: color 0.15s, text-shadow 0.15s;
+}
+.refine-cta:hover { color: var(--ink); text-shadow: 0 0 12px rgba(183,155,255,0.5); }
 
 .head-actions { display: flex; gap: 14px; -webkit-app-region: no-drag; }
 
@@ -374,7 +440,7 @@ body.recording .iv-actions { border-top-color: transparent; }
 .fb-btn { align-self: stretch; white-space: nowrap; padding: 9px 14px; }
 
 .meta-row {
-  margin-top: 12px; padding-top: 12px;
+  margin-top: 16px; padding-top: 14px;
   border-top: 1px solid var(--card-line);
   display: flex; flex-wrap: wrap; gap: 6px;
 }
@@ -386,19 +452,40 @@ body.recording .iv-actions { border-top-color: transparent; }
 }
 .pill b { color: var(--ink); font-weight: 600; }
 
-/* ── footer / actions — ONE bar: change on the left, decide on the right ── */
+/* draft meta-row: minimal, borderless pills that barely register */
+#projlist { gap: 8px; }
+#projlist .pill {
+  font-size: 10.5px;
+  color: var(--ink-faint);
+  background: transparent;
+  border: none;
+  padding: 2px 0;
+  border-radius: 0;
+  letter-spacing: 0.3px;
+}
+#projlist .pill b { color: var(--ink-dim); font-weight: 600; }
+
+/* ── footer / actions — ONE quiet bar: change on the left, decide on the right.
+   Shares the editor's optical column (same max-width + centering). ── */
 .actions {
-  display: flex; flex-direction: column; gap: 9px;
+  display: flex; flex-direction: column; gap: 14px;
+  width: 100%; max-width: 680px; margin: 0 auto;
   -webkit-app-region: no-drag;
 }
-.posting-as { font-size: 12px; color: var(--ink-faint); }
+.posting-as { font-size: 11px; color: var(--ink-faint); letter-spacing: 0.3px; }
 .posting-as b { color: var(--ink-dim); font-weight: 500; }
-/* one right-aligned cluster: Start over · Improve… · Skip · Post → */
-.act-row { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
-.buttons { display: flex; gap: 10px; }
-/* the primary "make it better" affordance — a touch brighter than a plain link */
-.improve { color: var(--accent); font-size: 13px; font-weight: 600; }
-.improve:hover { color: var(--ink); text-shadow: 0 0 12px rgba(183,155,255,0.5); }
+/* change-left (Start over) vs decide-right cluster (Improve · Skip · Post) */
+.act-row { display: flex; align-items: center; justify-content: space-between; gap: 20px; }
+.buttons { display: flex; gap: 16px; align-items: center; }
+/* footer's quiet text links recede to --ink-faint (don't disturb shared .link) */
+.actions .link {
+  font-size: 12.5px; font-weight: 500; color: var(--ink-faint);
+  padding: 0; transition: color 0.15s;
+}
+.actions .link:hover { color: var(--ink-dim); }
+/* the single quiet accent besides the primary Post button */
+.actions .improve { color: var(--accent); font-size: 12.5px; font-weight: 600; }
+.actions .improve:hover { color: var(--ink); text-shadow: 0 0 10px rgba(183,155,255,0.4); }
 
 .btn {
   -webkit-app-region: no-drag;

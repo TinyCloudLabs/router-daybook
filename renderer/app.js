@@ -44,7 +44,9 @@ const els = {
   emptySub: $('empty-sub'),
   emptyOpenScope: $('empty-open-scope'),
   editor: $('editor'),
-  improve: $('improve'),
+  refinePrompt: $('refine-prompt'),
+  refineQ: $('refine-q'),
+  refineCta: $('refine-cta'),
   startover: $('startover'),
   projlist: $('projlist'),
   success: $('success'),
@@ -234,12 +236,24 @@ async function boot() {
   ctx.server = b.server || '';
   els.postingAs.innerHTML = `posting to <b>${hostLabel(b.server)}</b>`;
   if (!b.hasKey) return showConnect(); // no identity yet — join the Router first
+  if (b.hasKey) setStreak(); // header streak — non-blocking
   if (b.introduced) return run();
   // Pre-fetch the intro context + first question now, while they read the
   // welcome, so clicking Begin is instant.
   introPrefetch = window.daybook.introStart().catch((e) => ({ error: e.message || String(e) }));
   window.daybook.warmWhisper(); // load the transcription model now, so speaking is fast later
   showWelcome();
+}
+
+// The header streak: consecutive days you've posted to the Router. Set at boot
+// and refreshed after each post. Non-blocking; a failed fetch just shows blank.
+async function setStreak() {
+  let n = 0;
+  try { const r = await window.daybook.getStreak(); n = (r && r.streak) || 0; }
+  catch { n = 0; }
+  els.date.innerHTML = n >= 1
+    ? `<span class="streak-n">${n}</span> day streak`
+    : '<span class="streak-zero">start a streak</span>';
 }
 
 // No identity yet: join the Router in-app (generate → register → save rc).
@@ -573,14 +587,21 @@ async function buildIntro() {
 // OPTIONAL: jump into the interview engine to sharpen the CURRENT daily draft.
 // Reuses the same interview view; on wrap-up the answers rewrite the draft via
 // the normal revise path. Only offered for daily digests, never the intro.
-async function startRefine() {
+// `seed` is the bundled first question (from generate) — when present the
+// interview opens INSTANTLY on it, no round-trip. Falls back to refine:start.
+async function startRefine(seed) {
   if (mode === 'intro') return;
   refineDraft = currentText();
   if (!refineDraft.trim()) return;
   ivMode = 'refine';
   ivMax = 3;
-  ivTranscript = [];
   ivIndex = 0;
+  if (seed && typeof seed === 'string') {
+    ivTranscript = [{ q: seed, hint: '', a: '' }];
+    showQuestion(0);
+    return setView('interview');
+  }
+  ivTranscript = [];
   setView('loading');
   els.loadingText.textContent = 'Reading your draft…';
   try {
@@ -623,7 +644,6 @@ async function run() {
   const { stats, hasActivity, digest, name, server } = collected;
   ctx = { digest, name: name || 'James', dateLabel: stats.date, server: server || '' };
 
-  els.date.textContent = stats.date;
   els.sProjects.textContent = stats.projectCount;
   els.sMessages.textContent = stats.messageCount;
   els.sFiles.textContent = stats.fileCount;
@@ -675,8 +695,11 @@ function applyResult(res) {
   cur.generated = res.post || '';
   // The draft IS the editor — drop the text straight in, editable.
   els.editor.value = cur.text;
-  // "Improve…" (the refine interview) sharpens daily drafts, not the intro.
-  els.improve.hidden = (mode === 'intro');
+  // Bundled refine opener: show the question + CTA under the draft (daily
+  // drafts only, and only when the model offered a question).
+  ctx.firstQuestion = (mode === 'intro') ? '' : (res.firstQuestion || '');
+  if (ctx.firstQuestion) els.refineQ.textContent = ctx.firstQuestion;
+  els.refinePrompt.hidden = !ctx.firstQuestion;
   els.quiet.hidden = !res.quietDay;
   if (res.quietDay) {
     els.quiet.querySelector('span').textContent =
@@ -713,6 +736,7 @@ async function doPost() {
     els.successSub.textContent =
       `${what} as ${who} to ${hostLabel(res.server)}. It’s held in staging and stays deletable for a while before it goes public.`;
     setView('success');
+    setStreak(); // you just posted — the streak may have ticked up
     // Show the feed you just joined — your post and the room's, newest first.
     loadFeed(els.successFeed, { limit: 8, emptyMsg: 'Your post is staged — it’ll appear here once it’s live.' });
   } catch (e) {
@@ -744,7 +768,7 @@ els.ivAnswer.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ivNext();
 });
 els.ivSkip.addEventListener('click', () => (ivMode === 'refine' ? applyRefine() : buildIntro())); // "Wrap up →"
-els.improve.addEventListener('click', startRefine);
+els.refineCta.addEventListener('click', () => startRefine(ctx.firstQuestion));
 els.startover.addEventListener('click', () => (mode === 'intro' ? buildIntro() : generate()));
 els.skip.addEventListener('click', async () => {
   if (mode === 'intro') { await window.daybook.markIntroduced(); return run(); }
