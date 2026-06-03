@@ -5,6 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('daybook', {
   bootstrap: () => ipcRenderer.invoke('bootstrap'),
   join: (payload) => ipcRenderer.invoke('join', payload),
+  useKey: (payload) => ipcRenderer.invoke('use-key', payload),
   welcomeMessage: () => ipcRenderer.invoke('welcome-message'),
   introStart: () => ipcRenderer.invoke('intro-start'),
   introNext: (payload) => ipcRenderer.invoke('intro-next', payload),

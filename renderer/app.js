@@ -81,6 +81,10 @@ const els = {
   connectHandle: $('connect-handle'),
   connectJoin: $('connect-join'),
   connectErr: $('connect-err'),
+  connectHaveKey: $('connect-have-key'),
+  connectKeyRow: $('connect-key-row'),
+  connectKey: $('connect-key'),
+  connectUseKey: $('connect-use-key'),
   welcome: $('welcome'),
   welcomeBody: $('welcome-body'),
   welcomeBegin: $('welcome-begin'),
@@ -338,6 +342,23 @@ async function doJoin() {
     els.connectErr.hidden = false;
   } finally {
     els.connectJoin.disabled = false; els.connectJoin.textContent = 'Join the Router →';
+  }
+}
+
+// Already have a key? Validate + save it (no new identity, no handle needed).
+async function doUseKey() {
+  const key = els.connectKey.value.trim();
+  els.connectErr.hidden = true;
+  if (!key) { els.connectKey.focus(); return; }
+  els.connectUseKey.disabled = true; els.connectUseKey.textContent = 'Checking…';
+  try {
+    await window.daybook.useKey({ key });
+    boot(); // re-bootstrap — we now have a valid key
+  } catch (e) {
+    els.connectErr.textContent = e.message || String(e);
+    els.connectErr.hidden = false;
+  } finally {
+    els.connectUseKey.disabled = false; els.connectUseKey.textContent = 'Use key →';
   }
 }
 
@@ -825,6 +846,13 @@ els.post.addEventListener('click', () => {
 
 els.connectJoin.addEventListener('click', doJoin);
 els.connectHandle.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
+els.connectHaveKey.addEventListener('click', () => {
+  els.connectKeyRow.hidden = false;
+  els.connectHaveKey.hidden = true;
+  els.connectKey.focus();
+});
+els.connectUseKey.addEventListener('click', doUseKey);
+els.connectKey.addEventListener('keydown', (e) => { if (e.key === 'Enter') doUseKey(); });
 els.connectInvite.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
 els.welcomeBegin.addEventListener('click', startInterview);
 els.welcomeSkip.addEventListener('click', async () => { await window.daybook.markIntroduced(); run(); });

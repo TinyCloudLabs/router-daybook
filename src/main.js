@@ -12,7 +12,7 @@ const { collectToday, collectSinceLastPost, collectRecent, collectMostRecentDay,
 const { generate, extractPatterns } = require('./reflect');
 const scopeMod = require('./scope');
 const { redact } = require('./redact');
-const { post, fetchFeed, cohortFeed, lastOwnPostMs, postStreak, whoami, loadConfig, hasConfig, joinWithInvite, DEFAULT_SERVER } = require('./router');
+const { post, fetchFeed, cohortFeed, lastOwnPostMs, postStreak, whoami, loadConfig, hasConfig, joinWithInvite, useExistingKey, DEFAULT_SERVER } = require('./router');
 const learning = require('./preferences');
 const intro = require('./intro');
 const link = require('./link');
@@ -186,6 +186,9 @@ ipcMain.handle('join', async (_evt, { invite, handle }) => {
   } catch { /* not a URL — treat the input as a bare code on the default server */ }
   return await joinWithInvite({ server, inviteCode, handle });
 });
+
+// Already have a key (router CLI, another machine)? Paste it instead of joining.
+ipcMain.handle('use-key', async (_evt, { key } = {}) => useExistingKey({ key }));
 
 // ── IPC: onboarding — discover projects, draft the intro, mark done ────────
 ipcMain.handle('discover-projects', async () => intro.discoverProjects());

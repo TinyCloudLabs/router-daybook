@@ -245,6 +245,23 @@ function saveConfig({ key, server, handle }) {
   return next;
 }
 
+// Already have a key (e.g. from the `router` CLI)? Validate it against the
+// server BEFORE saving, so a bad key never overwrites a good ~/.routerrc.
+// Returns { server, handle } on success; throws with a plain message otherwise.
+async function useExistingKey({ key, server } = {}) {
+  const k = String(key || '').trim();
+  if (!k) throw new Error('Paste your Router key.');
+  const srv = (server && String(server).trim()) || DEFAULT_SERVER;
+  let res;
+  try { res = await fetch(`${srv}/api/me?key=${encodeURIComponent(k)}`); }
+  catch (e) { throw new Error('Could not reach the Router: ' + e.message); }
+  if (!res.ok) throw new Error(`That key was not accepted (${res.status}). Check it and try again.`);
+  let d = {};
+  try { d = await res.json(); } catch { /* tolerate */ }
+  saveConfig({ key: k, server: srv, handle: d.handle || undefined });
+  return { server: srv, handle: d.handle || null };
+}
+
 // In-app "router init": generate an identity, register a handle (which joins
 // the deployment's team), and save ~/.routerrc. No CLI needed.
 async function joinWithInvite({ server, inviteCode, handle }) {
@@ -302,4 +319,4 @@ async function post(content) {
   };
 }
 
-module.exports = { post, fetchFeed, cohortFeed, lastOwnPostMs, postStreak, whoami, loadConfig, hasConfig, saveConfig, joinWithInvite, DEFAULT_SERVER };
+module.exports = { post, fetchFeed, cohortFeed, lastOwnPostMs, postStreak, whoami, loadConfig, hasConfig, saveConfig, joinWithInvite, useExistingKey, DEFAULT_SERVER };
