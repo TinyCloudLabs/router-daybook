@@ -115,33 +115,14 @@
     <section class="card reflect" id="reflect" hidden>
       <div class="reflect-head">
         <span class="eyebrow" id="eyebrow">Cohort digest</span>
-        <div class="head-actions">
-          <button class="link" id="edit" title="Edit the text">✎ edit</button>
-          <button class="link" id="regen" title="Write it again">↻ rewrite</button>
-        </div>
       </div>
 
       <div class="quiet-banner" id="quiet" hidden>
         🌙 <span>Quiet day — what's in scope didn't have much worth a cohort post. Nothing posts.</span>
       </div>
 
-      <!-- read-only article view with hoverable footnote citations -->
-      <div id="article" class="prose article"></div>
-      <!-- editable raw view (toggled) -->
-      <textarea id="editor" class="prose editor" spellcheck="true" hidden></textarea>
-
-      <!-- revise THIS draft until it feels right to post -->
-      <div class="feedback">
-        <div class="fb-head">
-          <label for="fb">Not right? Say what to change</label>
-          <button class="link fb-prefs" id="learned" hidden></button>
-        </div>
-        <div class="fb-row">
-          <textarea id="fb" class="fb-input" rows="2"
-                    placeholder="e.g. too wordy, just the facts · drop the Insight line · cut the @-mention · less about the plumbing"></textarea>
-          <button class="btn ghost fb-btn" id="revise">Revise →</button>
-        </div>
-      </div>
+      <!-- the draft IS the editor — edit the text directly -->
+      <textarea id="editor" class="prose editor" spellcheck="true" placeholder="Your draft will appear here…"></textarea>
 
       <div class="meta-row" id="projlist"></div>
     </section>
@@ -239,14 +220,14 @@
 
     <footer class="actions" id="actions" hidden>
       <div class="posting-as" id="posting-as"></div>
-      <div class="buttons">
-        <button class="btn ghost" id="skip">Skip today</button>
+      <div class="act-row">
+        <button class="link" id="startover" title="Write a fresh draft">↻ Start over</button>
+        <button class="link improve" id="improve" title="Sharpen the draft in a short interview">✦ Improve…</button>
+        <button class="btn ghost" id="skip">Skip</button>
         <button class="btn primary" id="post">Post to cohort →</button>
       </div>
     </footer>
   </main>
-
-  <div id="fntip" class="fntip" hidden></div>
 
   <script src="app.js"></script>
 </body>

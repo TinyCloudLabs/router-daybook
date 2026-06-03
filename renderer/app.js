@@ -43,15 +43,10 @@ const els = {
   emptyStatus: $('empty-status'),
   emptySub: $('empty-sub'),
   emptyOpenScope: $('empty-open-scope'),
-  article: $('article'),
   editor: $('editor'),
-  edit: $('edit'),
-  regen: $('regen'),
-  fb: $('fb'),
-  revise: $('revise'),
-  learned: $('learned'),
+  improve: $('improve'),
+  startover: $('startover'),
   projlist: $('projlist'),
-  fntip: $('fntip'),
   success: $('success'),
   successSub: $('success-sub'),
   successFeed: $('success-feed'),
@@ -190,210 +185,7 @@ function renderMarkdown(raw) {
   return out.join('');
 }
 
-function renderArticle() {
-  const text = cur.text || '';
-  const lines = text.split('\n');
-
-  // The digest carries a kicker + headline + Sources footer that aren't
-  // markdown; peel those off and markdown-render the body between them.
-  let kicker = '', headline = '', rest = text;
-  if ((lines[0] || '').startsWith('Router digest')) {
-    kicker = lines[0];
-    headline = (lines[1] || '').trim();
-    rest = lines.slice(2).join('\n');
-  }
-  let sources = '';
-  const sIdx = rest.indexOf('—\nSources');
-  if (sIdx >= 0) { sources = rest.slice(sIdx); rest = rest.slice(0, sIdx); }
-
-  let html = '';
-  if (kicker) html += `<div class="kicker">${escapeHtml(kicker)}</div>`;
-  if (headline) html += `<div class="headline">${escapeHtml(headline)}</div>`;
-  html += renderMarkdown(rest);
-  if (sources) html += `<div class="sources">${escapeHtml(sources).replace(/\n/g, '<br>')}</div>`;
-
-  // Wrap superscript markers as hoverable citations.
-  html = html.replace(SUP_RE, (ch) => {
-    const n = SUP[ch];
-    if (!cur.fnMap[n]) return ch;
-    return `<sup class="fn" data-n="${n}">${ch}</sup>`;
-  });
-
-  els.article.innerHTML = html;
-}
-
-// Map each postFinding onto its visible maskedAs string in the article HTML.
-// Longest masks first so shorter ones don't shadow them. Each match becomes a
-// .rdx chip tagged by confidence/type so colour follows the spec (auto=grey,
-// rule/client=accent, suggested=dashed). data-fid keys the tooltip + reveal.
-function decorateRedactions(html) {
-  const findings = (preview && preview.postFindings) || [];
-  if (!findings.length) return html;
-  // Suggested (low-confidence) findings aren't block-masked in `post`, so they
-  // appear as their original text — match on that; confident findings match
-  // their maskedAs (the visible block/abstraction).
-  const target = (f) => (f.confidence === 'low' ? (f.maskedAs || f.original) : f.maskedAs) || '';
-  const byMask = findings.slice().sort((a, b) => target(b).length - target(a).length);
-  for (const f of byMask) {
-    const mask = target(f);
-    if (!mask) continue;
-    const esc = escapeHtml(mask);
-    const cls = f.confidence === 'low' ? 'rdx-suggested'
-      : (f.type === 'userTerm' || f.type === 'client') ? (f.type === 'client' ? 'rdx-client' : 'rdx-rule')
-        : 'rdx-auto';
-    const chip = `<span class="rdx ${cls}" data-fid="${escapeHtml(f.id)}">${esc}</span>`;
-    // replace first un-wrapped occurrence (avoid re-wrapping already-chipped text)
-    const idx = findMaskIndex(html, esc);
-    if (idx >= 0) html = html.slice(0, idx) + chip + html.slice(idx + esc.length);
-  }
-  return html;
-}
-function findMaskIndex(html, esc) {
-  let from = 0;
-  while (true) {
-    const i = html.indexOf(esc, from);
-    if (i < 0) return -1;
-    // skip if inside an existing data-fid="..." attribute region (already chipped)
-    const before = html.lastIndexOf('<span class="rdx', i);
-    const close = before >= 0 ? html.indexOf('</span>', before) : -1;
-    if (before >= 0 && close >= 0 && i < close && i > before) { from = i + esc.length; continue; }
-    return i;
-  }
-}
-
-function showTip(target) {
-  const n = target.getAttribute('data-n');
-  const fn = cur.fnMap[n];
-  if (!fn) return;
-  els.fntip.innerHTML = `
-    <div class="t-head">@${escapeHtml(fn.handle)} · ${escapeHtml(fn.date)}</div>
-    <div class="t-quote">“${escapeHtml(fn.quote)}”</div>
-    ${fn.excerpt ? `<div class="t-ex">${escapeHtml(fn.excerpt)}</div>` : ''}
-  `;
-  els.fntip.hidden = false;
-  const r = target.getBoundingClientRect();
-  const tip = els.fntip;
-  const top = r.top - tip.offsetHeight - 8;
-  let left = r.left - tip.offsetWidth / 2;
-  left = Math.max(12, Math.min(left, window.innerWidth - tip.offsetWidth - 12));
-  tip.style.top = (top < 8 ? r.bottom + 8 : top) + 'px';
-  tip.style.left = left + 'px';
-}
-function hideTip() { els.fntip.hidden = true; els.fntip.classList.remove('rdx-tip'); }
-
-// Redaction chip tooltip (reuses .fntip): conceal-by-default, 1Password-style
-// explicit local reveal. Stays interactive so reveal/always-hide are clickable.
-function showRdxTip(target) {
-  const fid = target.getAttribute('data-fid');
-  const f = findingById[fid];
-  if (!f) return;
-  const isRule = f.type === 'userTerm';
-  const isClient = f.type === 'client';
-  const isSuggested = f.confidence === 'low';
-  let head, body;
-  if (isClient) {
-    head = 'hidden by your rule';
-    body = `Shown to the cohort as “${escapeHtml(f.maskedAs)}”.`;
-  } else if (isRule) {
-    head = 'hidden by your rule';
-    body = 'Shown to the cohort as a masked term.';
-  } else if (isSuggested) {
-    head = 'I think this is a secret';
-    body = 'Not auto-hidden — detection is best-effort.';
-  } else {
-    head = 'hidden — looks like a secret';
-    body = 'Hidden before any text left your machine.';
-  }
-  const reveal = isSuggested
-    ? `<span class="t-link" data-act="hide" data-fid="${escapeHtml(fid)}">hide it ▸</span> &nbsp;·&nbsp; <span class="t-link" data-act="dismiss" data-fid="${escapeHtml(fid)}">not a secret</span>`
-    : isRule || isClient
-      ? `<span class="t-link" data-act="reveal" data-fid="${escapeHtml(fid)}">reveal to check ▸</span>`
-      : `<span class="t-link" data-act="reveal" data-fid="${escapeHtml(fid)}">reveal to check ▸</span> &nbsp;·&nbsp; <span class="t-link" data-act="hide" data-fid="${escapeHtml(fid)}">always hide ▸</span>`;
-  els.fntip.innerHTML = `
-    <div class="t-head">${escapeHtml(head)}</div>
-    ${f.source ? `<div class="t-ex">from ${escapeHtml(f.source)}</div>` : ''}
-    <div class="t-quote">${escapeHtml(body)}</div>
-    <div class="t-reveal" data-rev="${escapeHtml(fid)}"><span class="t-clear" hidden></span>${reveal}</div>
-  `;
-  els.fntip.hidden = false;
-  els.fntip.classList.add('rdx-tip');
-  positionTip(target);
-}
-function positionTip(target) {
-  const r = target.getBoundingClientRect();
-  const tip = els.fntip;
-  const top = r.top - tip.offsetHeight - 8;
-  let left = r.left - tip.offsetWidth / 2;
-  left = Math.max(12, Math.min(left, window.innerWidth - tip.offsetWidth - 12));
-  tip.style.top = (top < 8 ? r.bottom + 8 : top) + 'px';
-  tip.style.left = left + 'px';
-}
-
-els.article.addEventListener('mouseover', (e) => {
-  const fn = e.target.closest('.fn');
-  if (fn) return showTip(fn);
-  const rdx = e.target.closest('.rdx');
-  if (rdx) showRdxTip(rdx);
-});
-els.article.addEventListener('mouseout', (e) => {
-  if (e.target.closest('.fn')) return hideTip();
-  // redaction tips persist (interactive reveal); they close on mouseleave of the tip
-});
-els.fntip.addEventListener('mouseleave', () => { if (els.fntip.classList.contains('rdx-tip')) hideTip(); });
-
-// Local-only reveal / always-hide, driven from the redaction tooltip. Reveal
-// NEVER re-enters the outgoing string and is transient (clears on tip close).
-els.fntip.addEventListener('click', async (e) => {
-  const link = e.target.closest('.t-link');
-  if (!link) return;
-  const act = link.getAttribute('data-act');
-  const fid = link.getAttribute('data-fid');
-  const f = findingById[fid];
-  if (!f) return;
-  if (act === 'dismiss') {
-    // "not a secret" on a suggested chip just closes the tip — it must NOT
-    // reveal the masked content (that's what `reveal` is for). A suggested
-    // finding is best-effort; dismissing leaves the visible draft as-is.
-    hideTip();
-  } else if (act === 'reveal') {
-    try {
-      const r = await window.daybook.redactionReveal({ findingId: fid });
-      const slot = els.fntip.querySelector('.t-clear');
-      if (slot && r && typeof r.original === 'string') { slot.textContent = r.original; slot.hidden = false; }
-    } catch { /* local reveal failed — leave concealed */ }
-  } else if (act === 'hide') {
-    // promote a suggested/auto finding to a standing always-hide rule
-    const term = f.original || f.maskedAs;
-    try {
-      const r = await window.daybook.redactionRule({ op: 'add', term });
-      hideTip();
-      const idx = (r && r.hide ? r.hide.lastIndexOf(term) : -1);
-      showToast('rule added — undo', async () => {
-        if (idx >= 0) await window.daybook.redactionRule({ op: 'remove', index: idx });
-      });
-    } catch { /* */ }
-  }
-});
-
-// ── edit toggle ────────────────────────────────────────────────────────────
-function toggleEdit() {
-  if (!cur.editing) {
-    els.editor.value = cur.text;
-    els.editor.hidden = false;
-    els.article.hidden = true;
-    els.edit.textContent = '✓ done';
-    cur.editing = true;
-    els.editor.focus();
-  } else {
-    cur.text = els.editor.value;
-    renderArticle();
-    els.editor.hidden = true;
-    els.article.hidden = false;
-    els.edit.textContent = '✎ edit';
-    cur.editing = false;
-  }
-}
-const currentText = () => (cur.editing ? els.editor.value : cur.text);
+const currentText = () => els.editor.value;
 
 // ── live "thinking" view: a token counter that climbs as the model works ───
 // claude -p flushes its stream-json mostly at the end, so the real count lands
@@ -477,6 +269,9 @@ const MAX_TURNS = 5;
 let ivTranscript = [];   // [{ q, hint, a }]
 let ivIndex = 0;
 let ivProjectCount = 0;
+let ivMode = 'intro';    // 'intro' (onboarding) | 'refine' (sharpen a daily draft)
+let ivMax = MAX_TURNS;   // turn cap for the active interview (intro 5, refine 3)
+let refineDraft = '';    // the draft the refine interview is sharpening
 let introPrefetch = null; // promise of intro-start, warmed during the welcome
 
 // First run: one natural welcome note, grounded in your recent work. Shows
@@ -495,6 +290,8 @@ function showWelcome() {
 // all generated through the Claude Code SDK (claude -p).
 async function startInterview() {
   mode = 'intro';
+  ivMode = 'intro';
+  ivMax = MAX_TURNS;
   ivTranscript = [];
   ivIndex = 0;
   setView('loading');
@@ -523,7 +320,8 @@ function showQuestion(i) {
   els.ivBack.style.visibility = i === 0 ? 'hidden' : 'visible';
   // We don't know if this is the last question until the model says done, but
   // offer to wrap up from the last turn onward.
-  els.ivNext.textContent = i >= MAX_TURNS - 1 ? 'Write my introduction →' : 'Next →';
+  const wrapLabel = ivMode === 'refine' ? 'Rewrite the draft →' : 'Write my introduction →';
+  els.ivNext.textContent = i >= ivMax - 1 ? wrapLabel : 'Next →';
   if (answerState === 'text') setTimeout(() => els.ivAnswer.focus(), 0);
 }
 
@@ -536,15 +334,19 @@ async function ivNext() {
   try {
     await finishVoiceInput(); // capture any in-flight recording/transcription — never lose it
     ivStore();
+    const wrap = () => (ivMode === 'refine' ? applyRefine() : buildIntro());
     // Going forward from an already-seen question?
     if (ivIndex < ivTranscript.length - 1) { ivIndex++; return showQuestion(ivIndex); }
-    if (ivIndex >= MAX_TURNS - 1) return buildIntro();
+    if (ivIndex >= ivMax - 1) return wrap();
 
     // Ask the model for a natural follow-up — show the token count climb live.
     startThinking('Thinking of the next question…');
-    const res = await window.daybook.introNext({ transcript: ivTranscript.map(({ q, a }) => ({ q, a })) });
+    const qa = ivTranscript.map(({ q, a }) => ({ q, a }));
+    const res = ivMode === 'refine'
+      ? await window.daybook.refineNext({ transcript: qa, draft: refineDraft })
+      : await window.daybook.introNext({ transcript: qa });
     stopThinking();
-    if (res.done || !res.question) return buildIntro();
+    if (res.done || !res.question) return wrap();
     ivTranscript.push({ q: res.question, hint: res.hint || '', a: '' });
     ivIndex++;
     showQuestion(ivIndex);
@@ -756,7 +558,6 @@ async function buildIntro() {
   ivStore();
   els.post.textContent = 'Post introduction →';
   els.skip.textContent = 'Skip for now';
-  els.fb.placeholder = 'e.g. lead with the video work · cut the background section · shorter';
   startThinking('Writing your introduction…');
   try {
     const res = await window.daybook.introWrite({ transcript: ivTranscript.map(({ q, a }) => ({ q, a })) });
@@ -769,13 +570,49 @@ async function buildIntro() {
   } catch (e) { stopThinking(); fail(e.message || String(e)); }
 }
 
+// OPTIONAL: jump into the interview engine to sharpen the CURRENT daily draft.
+// Reuses the same interview view; on wrap-up the answers rewrite the draft via
+// the normal revise path. Only offered for daily digests, never the intro.
+async function startRefine() {
+  if (mode === 'intro') return;
+  refineDraft = currentText();
+  if (!refineDraft.trim()) return;
+  ivMode = 'refine';
+  ivMax = 3;
+  ivTranscript = [];
+  ivIndex = 0;
+  setView('loading');
+  els.loadingText.textContent = 'Reading your draft…';
+  try {
+    const q = await window.daybook.refineStart({ draft: refineDraft });
+    if (q && q.error) throw new Error(q.error);
+    if (!q.question) return applyRefine();
+    ivTranscript.push({ q: q.question, hint: q.hint || '', a: '' });
+    showQuestion(0);
+    setView('interview');
+  } catch (e) { fail(e.message || String(e)); }
+}
+
+async function applyRefine() {
+  await finishVoiceInput();
+  ivStore();
+  ivMode = 'intro'; // revert to the default once we leave the interview
+  const qa = ivTranscript.map(({ q, a }) => ({ q, a })).filter((t) => (t.a || '').trim());
+  if (!qa.length) return setView('reflect'); // nothing said — keep the draft as-is
+  startThinking('Rewriting the draft…');
+  try {
+    const res = await window.daybook.refineWrite({ transcript: qa, draft: refineDraft });
+    stopThinking();
+    applyResult(res);
+  } catch (e) { stopThinking(); fail(e.message || String(e)); }
+}
+
 // ── flow ───────────────────────────────────────────────────────────────────
 async function run() {
   mode = 'digest';
   els.eyebrow.textContent = 'Cohort digest';
   els.post.textContent = 'Post to cohort →';
   els.skip.textContent = 'Skip';
-  els.fb.placeholder = 'e.g. too wordy, just the facts · drop the Insight line · cut the @-mention · less about the plumbing';
   setView('loading');
   els.loadingText.textContent = 'Reading sessions since your last post…';
   let collected;
@@ -836,25 +673,16 @@ els.emptyOpenScope.addEventListener('click', () => showScope('reflect'));
 function applyResult(res) {
   cur.text = res.post || '';
   cur.generated = res.post || '';
-  cur.fnMap = {};
-  for (const f of (res.footnotes || [])) cur.fnMap[f.n] = f;
-  cur.editing = false;
-  els.editor.hidden = true;
-  els.article.hidden = false;
-  els.edit.textContent = '✎ edit';
-  renderArticle();
+  // The draft IS the editor — drop the text straight in, editable.
+  els.editor.value = cur.text;
+  // "Improve…" (the refine interview) sharpens daily drafts, not the intro.
+  els.improve.hidden = (mode === 'intro');
   els.quiet.hidden = !res.quietDay;
   if (res.quietDay) {
     els.quiet.querySelector('span').textContent =
       "Quiet day — what's in scope didn't have much worth a cohort post. Nothing posts.";
   }
   setView('reflect');
-}
-
-function updateLearned(patterns) {
-  const n = (patterns || []).length;
-  els.learned.hidden = !n;
-  els.learned.textContent = n ? `✦ learned ${n}` : '';
 }
 
 async function generate() {
@@ -865,22 +693,6 @@ async function generate() {
       digest: ctx.digest, name: ctx.name, dateLabel: ctx.dateLabel,
     });
     applyResult(res);
-    updateLearned(res.learned);
-  } catch (e) { fail(e.message || String(e)); }
-}
-
-// Revise THIS draft in place from a note. The note is logged, but only shapes
-// future drafts if the same intent recurs as a pattern.
-async function revise() {
-  const instruction = els.fb.value.trim();
-  if (!instruction) { els.fb.focus(); return; }
-  setView('loading');
-  els.loadingText.textContent = 'Revising the draft…';
-  try {
-    const res = await window.daybook.revise({ currentDraft: currentText(), instruction });
-    applyResult(res);
-    updateLearned(res.learned);
-    els.fb.value = '';
   } catch (e) { fail(e.message || String(e)); }
 }
 
@@ -931,22 +743,9 @@ els.ivRedo.addEventListener('click', startRecording);
 els.ivAnswer.addEventListener('keydown', (e) => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') ivNext();
 });
-els.ivSkip.addEventListener('click', buildIntro); // "Wrap up →" — write from what we have
-els.edit.addEventListener('click', toggleEdit);
-els.revise.addEventListener('click', revise);
-els.fb.addEventListener('keydown', (e) => {
-  if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') revise();
-});
-// Review / forget what Router has learned from recurring notes.
-els.learned.addEventListener('click', async () => {
-  const list = await window.daybook.getLearned();
-  if (!list.length) return;
-  const text = list.map((p, i) => `${i + 1}. ${p}`).join('\n');
-  if (confirm(`Router has picked up these recurring preferences and applies them to every draft:\n\n${text}\n\nForget them?`)) {
-    await window.daybook.clearLearned();
-    updateLearned([]);
-  }
-});
+els.ivSkip.addEventListener('click', () => (ivMode === 'refine' ? applyRefine() : buildIntro())); // "Wrap up →"
+els.improve.addEventListener('click', startRefine);
+els.startover.addEventListener('click', () => (mode === 'intro' ? buildIntro() : generate()));
 els.skip.addEventListener('click', async () => {
   if (mode === 'intro') { await window.daybook.markIntroduced(); return run(); }
   window.close();
@@ -1184,7 +983,6 @@ els.peerDisconnect.addEventListener('click', async () => {
   else await window.daybook.linkDisconnect();
   els.peerIdle.hidden = false; els.peerActive.hidden = true; setPeerMode(peerMode);
 });
-els.regen.addEventListener('click', () => (mode === 'intro' ? buildIntro() : generate()));
 els.retry.addEventListener('click', boot);
 els.openFeed.addEventListener('click', () => window.daybook.openFeed(ctx.server));
 

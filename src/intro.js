@@ -232,6 +232,13 @@ function feedBlock(feedEntries) {
   return '\n\nCOHORT NOTEBOOK (recent posts from OTHERS — use these to find real overlaps between what they\'re doing/needing and what he could give or wants):\n' + lines.join('\n');
 }
 
+// Optional grounding for the "refine a draft" reuse: the current draft the
+// interview is helping sharpen. Empty for the onboarding flow (no focus passed).
+function focusBlock(focus) {
+  if (!focus || !String(focus).trim()) return '';
+  return '\n\nCURRENT DRAFT (what this conversation is helping ' + 'refine — ground questions in it, aim at what he most wants to say or get back):\n' + String(focus).trim();
+}
+
 // STEP 1 — a DYNAMIC interview (one question at a time, real follow-ups),
 // modeled on the archive AI-interview craft. We never show a draft; the
 // conversation produces the intro.
@@ -270,39 +277,49 @@ Voice: warm, plain, direct, second person ("you"). About 3-5 sentences, ~55-90 w
     .catch(() => '');
 }
 
-function firstQuestion({ name = 'They', projects = [], history = '', feedEntries = [], timeoutMs = 120000, model } = {}) {
+// `purpose`, `goals`, `opening`, and `focus` are OPTIONAL overrides. They all
+// default to the onboarding values, so existing callers (and the whole intro
+// flow) behave byte-for-byte as before. The "refine a draft" reuse passes its
+// own purpose/opening plus `focus` (the current draft) to ground the questions.
+function firstQuestion({ name = 'They', projects = [], history = '', feedEntries = [], timeoutMs = 120000, model,
+  purpose, opening, focus } = {}) {
+  const purposeBlock = purpose || interviewPurpose(name);
+  const openingBlock = opening || `Ask the FIRST question. Open on who he is and what he's building toward — the throughline of his work and what's driving it — in a way that invites him to talk about what he cares about and what he's reaching for. Ground it in his real work, but aim at motivation and substance, not a cinematic moment.`;
   const system = `You are interviewing ${name} for the shape-rotator accelerator cohort — a community of builders who help each other. You've read his recent work (CORPUS below) and the cohort's recent notebook posts.
 
-${interviewPurpose(name)}
+${purposeBlock}
 
-Ask the FIRST question. Open on who he is and what he's building toward — the throughline of his work and what's driving it — in a way that invites him to talk about what he cares about and what he's reaching for. Ground it in his real work, but aim at motivation and substance, not a cinematic moment.
+${openingBlock}
 
 ${INTERVIEW_CRAFT}
 
 Output JSON only: { "question": "...", "hint": "optional 3-6 word hint" }`;
-  const user = recentBlock(history, projects) + feedBlock(feedEntries) + '\n\nAsk the first question (JSON).';
+  const user = recentBlock(history, projects) + feedBlock(feedEntries) + focusBlock(focus) + '\n\nAsk the first question (JSON).';
   return runClaude(system, user, { timeoutMs, model }).then((out) => {
     const obj = extractJson(out) || {};
     return { question: String(obj.question || '').trim(), hint: String(obj.hint || '').trim(), done: false };
   });
 }
 
-function nextQuestion({ name = 'They', projects = [], history = '', feedEntries = [], transcript = [], maxTurns = 5, timeoutMs = 120000, model, onChunk } = {}) {
+function nextQuestion({ name = 'They', projects = [], history = '', feedEntries = [], transcript = [], maxTurns = 5, timeoutMs = 120000, model, onChunk,
+  purpose, goals, focus } = {}) {
   if (transcript.length >= maxTurns) return Promise.resolve({ done: true });
+  const purposeBlock = purpose || interviewPurpose(name);
+  const goalsBlock = goals || INTERVIEW_GOALS;
   const system = `You are interviewing ${name} (CORPUS below) for the cohort. The conversation so far is given. Ask the NEXT question, or end if you understand enough.
 
-${interviewPurpose(name)}
+${purposeBlock}
 
-${INTERVIEW_GOALS}
+${goalsBlock}
 
 ${INTERVIEW_CRAFT}
 - The next question must feel like a NATURAL follow-up and must NOT reuse the previous question's syntax or pattern.
 - Where it fits, draw on the COHORT NOTEBOOK: probe a real overlap between what others are doing/needing and what he could give or wants (e.g. "@x has been deep in Y — is that something you could help with, or want help on?"). Don't force it.
-- Build on what he just said. End when you understand who he is, what he can give, and what he wants to receive.
+- Build on what he just said. End when you understand enough.
 
 Output JSON only: { "done": false, "question": "...", "hint": "..." }  OR  { "done": true }`;
   const convo = transcript.map((t, i) => `Q${i + 1}: ${t.q}\nA${i + 1}: ${(t.a || '').trim() || '(skipped)'}`).join('\n\n');
-  const user = recentBlock(history, projects) + feedBlock(feedEntries) + '\n\nCONVERSATION SO FAR:\n' + convo + '\n\nAsk the next question or end (JSON).';
+  const user = recentBlock(history, projects) + feedBlock(feedEntries) + focusBlock(focus) + '\n\nCONVERSATION SO FAR:\n' + convo + '\n\nAsk the next question or end (JSON).';
   return runClaude(system, user, { timeoutMs, model, onChunk }).then((out) => {
     const obj = extractJson(out) || {};
     if (obj.done) return { done: true };

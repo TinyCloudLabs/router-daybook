@@ -227,8 +227,12 @@ async function post(content) {
   // The live server authenticates via ?key= (same as reads) and expects a
   // { summary, content } body — matching the `router` CLI's write contract.
   // (Key in the body as secret_key is the OLD shape and gets rejected.)
-  const firstLine = (text.split('\n').find((l) => l.trim()) || text).trim();
-  const summary = firstLine.length > 160 ? firstLine.slice(0, 157) + '…' : firstLine;
+  // The feed/Matrix preview shows this `summary`. Skip the "Router digest ·
+  // <date>" title line — the meaningful one-liner is the plain summary on the
+  // next line. (Intro posts have no title line, so they use their first line.)
+  const lines = text.split('\n').map((l) => l.trim()).filter(Boolean);
+  const pick = lines.find((l) => !/^router digest/i.test(l)) || lines[0] || text;
+  const summary = pick.length > 160 ? pick.slice(0, 157) + '…' : pick;
   const url = `${server}/api/entries?key=${encodeURIComponent(key)}`;
   const res = await fetch(url, {
     method: 'POST',

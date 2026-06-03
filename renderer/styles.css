@@ -319,12 +319,12 @@ body.recording .iv-actions { border-top-color: transparent; }
 }
 .fn:hover { text-shadow: 0 0 10px rgba(183, 155, 255, 0.8); }
 
+/* The draft IS the editor: a clean, borderless writing surface (inherits the
+   serif/size/spacing of .prose). No box, no chrome — just the text. */
 .editor {
-  flex: 1; min-height: 0; width: 100%;
-  background: rgba(0,0,0,0.18); border: 1px solid var(--card-line); outline: none;
-  resize: none; color: var(--ink); border-radius: 10px; padding: 12px;
-  font-family: var(--serif); font-size: 16px; line-height: 1.55;
-  user-select: text; overflow-y: auto;
+  padding: 2px 0 8px;
+  caret-color: var(--accent);
+  tab-size: 2;
 }
 
 .head-actions { display: flex; gap: 14px; -webkit-app-region: no-drag; }
@@ -386,14 +386,19 @@ body.recording .iv-actions { border-top-color: transparent; }
 }
 .pill b { color: var(--ink); font-weight: 600; }
 
-/* ── footer / actions ── */
+/* ── footer / actions — ONE bar: change on the left, decide on the right ── */
 .actions {
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; flex-direction: column; gap: 9px;
   -webkit-app-region: no-drag;
 }
 .posting-as { font-size: 12px; color: var(--ink-faint); }
 .posting-as b { color: var(--ink-dim); font-weight: 500; }
+/* one right-aligned cluster: Start over · Improve… · Skip · Post → */
+.act-row { display: flex; align-items: center; justify-content: flex-end; gap: 14px; }
 .buttons { display: flex; gap: 10px; }
+/* the primary "make it better" affordance — a touch brighter than a plain link */
+.improve { color: var(--accent); font-size: 13px; font-weight: 600; }
+.improve:hover { color: var(--ink); text-shadow: 0 0 12px rgba(183,155,255,0.5); }
 
 .btn {
   -webkit-app-region: no-drag;

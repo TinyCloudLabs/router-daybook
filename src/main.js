@@ -323,6 +323,58 @@ ipcMain.handle('revise', async (_evt, { currentDraft, instruction }) => {
   return { ...result, learned: learning.learned().patterns };
 });
 
+// ── IPC: OPTIONAL "refine in interview" — reuse the onboarding interview
+// engine to sharpen the CURRENT daily draft. Same firstQuestion/nextQuestion
+// loop (intro.js), but with a refine purpose grounded in the draft. The answers
+// become a single revise instruction fed to the SAME generate() revise path, so
+// every safety scrub still runs. Default daily flow is untouched; this only
+// runs when the user clicks the button.
+const REFINE_PURPOSE = (name) => `This is a SHORT interview to help ${name} sharpen the daily-update draft below before he shares it with the cohort. You are NOT re-interviewing him about who he is — you are helping THIS draft. Find what he most wants to get across, or most wants to hear back from the cohort, that the draft is missing, overstating, or framing wrong. Aim at substance and at what would make the post more useful to him and to readers.`;
+const REFINE_OPENING = `Ask the FIRST question. Read the current draft and ask the single most useful thing that would sharpen it — what he most wants the cohort to know or respond to, what feels off or missing, or whether the ask (if there is one) is the thing he actually wants help with. One question, grounded in the draft.`;
+const REFINE_GOALS = `Over at most two or three questions, surface: what he most wants to land or get back from the cohort; anything the draft overstates, misses, or frames wrong; and whether the ask is the high-value one (or should change or drop). Keep it short, then end.`;
+
+ipcMain.handle('refine:start', async (_evt, { draft } = {}) => {
+  if (!session.digest) throw new Error('Generate a draft first.');
+  const name = resolveName();
+  return await intro.firstQuestion({
+    name,
+    history: session.digest,
+    feedEntries: session.feedEntries || [],
+    purpose: REFINE_PURPOSE(name),
+    opening: REFINE_OPENING,
+    focus: draft || '',
+  });
+});
+
+ipcMain.handle('refine:next', async (_evt, { transcript, draft } = {}) => {
+  if (!session.digest) throw new Error('Generate a draft first.');
+  const name = resolveName();
+  return await intro.nextQuestion({
+    name,
+    history: session.digest,
+    feedEntries: session.feedEntries || [],
+    transcript: transcript || [],
+    maxTurns: 3,
+    purpose: REFINE_PURPOSE(name),
+    goals: REFINE_GOALS,
+    focus: draft || '',
+    onChunk: streamTokens(),
+  });
+});
+
+ipcMain.handle('refine:write', async (_evt, { transcript, draft } = {}) => {
+  if (!session.digest) throw new Error('Generate a draft first.');
+  const qa = (transcript || []).filter((t) => t && (t.a || '').trim());
+  if (!qa.length) throw new Error('Nothing from the interview to apply.');
+  const instruction = [
+    'Refine the draft using what the author said in this short interview. Apply his intent — what he wants to land or get back, and any framing he corrected — while keeping everything that already works and obeying all the rules and the format.',
+    '',
+    qa.map((t, i) => `Q${i + 1}: ${t.q}\nA${i + 1}: ${t.a.trim()}`).join('\n\n'),
+  ].join('\n');
+  const result = await generate(session.digest, { ...session, currentDraft: draft || '', instruction });
+  return { ...result, learned: learning.learned().patterns };
+});
+
 // ── IPC: view / forget what Router has learned ───────────────────────────
 ipcMain.handle('get-learned', async () => learning.learned().patterns);
 ipcMain.handle('clear-learned', async () => { learning.clearAll(); return { ok: true }; });
