@@ -15,13 +15,13 @@
   <main class="shell">
     <header class="head">
       <div class="brand">
-        <span class="dot"></span>
+        <canvas class="discoball" id="discoball" width="40" height="40" aria-hidden="true"></canvas>
         <span class="wordmark">Router</span>
       </div>
       <div class="head-right">
-        <button class="link head-link" id="open-feedview" title="The cohort feed">❏ Feed</button>
-        <button class="link head-link" id="open-scope" title="What the Router can see">◈ Scope</button>
-        <button class="link head-link" id="open-link" title="Link another computer">⛓ Link</button>
+        <button class="link head-link" id="open-feedview" title="The cohort feed" aria-label="Open the cohort feed"><span aria-hidden="true">❏</span> Feed</button>
+        <button class="link head-link" id="open-scope" title="What the Router can see" aria-label="Open Scope — what the Router can see"><span aria-hidden="true">◈</span> Scope</button>
+        <button class="link head-link" id="open-link" title="Link another computer" aria-label="Link another computer"><span aria-hidden="true">⛓</span> Link</button>
         <span class="date" id="date">—</span>
       </div>
     </header>
@@ -35,16 +35,16 @@
     <!-- LOADING -->
     <section class="card state" id="loading">
       <div class="spinner"></div>
-      <p class="status" id="loading-text">Reading today’s sessions…</p>
-      <div class="think-stream" id="think-stream" hidden></div>
+      <p class="status" id="loading-text" role="status" aria-live="polite">Getting set up…</p>
+      <div class="think-stream" id="think-stream" aria-hidden="true" hidden></div>
       <p class="sub">Files and voice stay on-device; text is written by your Claude subscription. Nothing posts until you approve.</p>
     </section>
 
     <!-- EMPTY -->
     <section class="card state" id="empty" hidden>
       <div class="glyph">🌙</div>
-      <p class="status" id="empty-status">No Claude or Codex activity today — yet.</p>
-      <p class="sub" id="empty-sub">Come back after you’ve done some work and I’ll have a reflection ready.</p>
+      <p class="status" id="empty-status" role="status" aria-live="polite">No new Claude or Codex activity since your last post — yet.</p>
+      <p class="sub" id="empty-sub">Come back after some work and the Router will have a reflection ready.</p>
       <button class="btn ghost" id="empty-open-scope" hidden>Open Scope →</button>
     </section>
 
@@ -52,7 +52,7 @@
     <section class="card state" id="error" hidden>
       <div class="glyph">⚠️</div>
       <p class="status">Something went sideways.</p>
-      <p class="sub" id="error-text"></p>
+      <p class="sub" id="error-text" role="alert"></p>
       <button class="btn ghost" id="retry">Try again</button>
     </section>
 
@@ -63,7 +63,7 @@
         <h2 class="welcome-title">Connect to the Router</h2>
         <p class="welcome-body">Router posts to your cohort’s shared notebook. Paste your invite link and pick a handle to join — no terminal needed.</p>
         <div class="connect-fields">
-          <input id="connect-invite" class="fb-input" placeholder="Invite link or code" autocomplete="off" spellcheck="false" />
+          <input id="connect-invite" class="fb-input" placeholder="Invite link or code" aria-label="Invite link or code" autocomplete="off" spellcheck="false" />
           <label class="connect-handle">
             <span class="at">@</span>
             <input id="connect-handle" class="fb-input" placeholder="choose a handle" autocomplete="off" spellcheck="false" />
@@ -79,7 +79,7 @@
     <!-- WELCOME (first run): introduce the reader to the Router -->
     <section class="card welcome" id="welcome" hidden>
       <div class="welcome-inner">
-        <span class="dot welcome-dot"></span>
+        <canvas class="discoball discoball-big" id="discoball-welcome" width="240" height="240" aria-hidden="true"></canvas>
         <h2 class="welcome-title">Welcome to the Router</h2>
         <p class="welcome-body" id="welcome-body"></p>
         <div class="welcome-actions">
@@ -97,7 +97,7 @@
       </div>
       <div class="iv-stage">
         <label class="iv-question" id="iv-question" for="iv-answer"></label>
-        <div class="iv-hint" id="iv-hint" hidden></div>
+        <div class="iv-hint" id="iv-hint" role="status" aria-live="polite" hidden></div>
         <div class="iv-answer-area" id="iv-answer-area">
           <button class="iv-speak" id="iv-mic">🎙 Speak your answer</button>
           <button class="link iv-type" id="iv-type">or type instead</button>
@@ -123,7 +123,7 @@
         </div>
 
         <!-- the draft IS the editor — edit the text directly -->
-        <textarea id="editor" class="prose editor" spellcheck="true" placeholder="Your draft will appear here…"></textarea>
+        <textarea id="editor" class="prose editor" spellcheck="true" aria-label="Your cohort post — edit it directly" placeholder="Your draft will appear here…"></textarea>
 
         <!-- bundled refine opener: a question + CTA into the interview -->
         <div class="refine-prompt" id="refine-prompt" hidden>
@@ -161,7 +161,7 @@
           </div>
           <div id="host-active" hidden>
             <div class="link-sub">Pairing code — paste it on the other computer:</div>
-            <textarea id="host-code" class="link-code" readonly rows="3"></textarea>
+            <textarea id="host-code" class="link-code" readonly rows="3" aria-label="Pairing code to paste on the other computer"></textarea>
             <div class="link-status" id="host-status">0 peers connected</div>
             <button class="btn ghost" id="host-stop">Stop sharing</button>
           </div>
@@ -174,11 +174,11 @@
           </div>
           <div id="peer-idle">
             <div id="peer-pane-code">
-              <textarea id="peer-code" class="link-code" placeholder="Paste a pairing code" rows="3"></textarea>
+              <textarea id="peer-code" class="link-code" placeholder="Paste a pairing code" aria-label="Pairing code from the other computer" rows="3"></textarea>
               <button class="btn primary" id="peer-connect">Connect →</button>
             </div>
             <div id="peer-pane-ssh" hidden>
-              <input id="peer-ssh" class="fb-input link-ssh-input" placeholder="user@host  ·  name.local  ·  ssh config alias" autocomplete="off" spellcheck="false" />
+              <input id="peer-ssh" class="fb-input link-ssh-input" placeholder="user@host  ·  name.local  ·  ssh config alias" aria-label="SSH target (user@host, name.local, or ssh alias)" autocomplete="off" spellcheck="false" />
               <div class="link-sub">Nothing needs to run on the other machine. Uses your existing SSH key access to read its ~/.claude &amp; ~/.codex logs — a computer on your network (try <b>name.local</b>) or across the internet.</div>
               <button class="btn primary" id="peer-ssh-connect">Connect over SSH →</button>
               <div class="ssh-saved" id="ssh-saved" hidden>
@@ -189,7 +189,7 @@
             <div class="link-err" id="peer-err" hidden></div>
           </div>
           <div id="peer-active" hidden>
-            <div class="link-status" id="peer-status">Connected.</div>
+            <div class="link-status" id="peer-status">Connected to this machine.</div>
             <div class="link-actions2">
               <button class="btn ghost" id="peer-pull-recent">Pull recent work</button>
               <button class="btn ghost" id="peer-pull-raw">Pull raw logs</button>

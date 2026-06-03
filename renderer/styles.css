@@ -11,6 +11,9 @@
   --ok: #5ad6a0;
   --warn: #ffcf6b;
   --mask: rgba(255, 255, 255, 0.14);
+  /* error red — NOT a data-flow color; only for failures / destructive hovers */
+  --err: #ff9b9b;
+  --err-soft: rgba(255, 90, 90, 0.16);
   /* semantic data-flow aliases (no new hues) */
   --stays-local: var(--ok);
   --leaves-write: var(--accent);
@@ -54,7 +57,16 @@ html, body {
 .head {
   display: flex; align-items: baseline; justify-content: space-between;
 }
-.brand { display: flex; align-items: center; gap: 9px; -webkit-app-region: no-drag; }
+.brand { display: flex; align-items: center; gap: 10px; -webkit-app-region: no-drag; }
+.discoball {
+  width: 34px; height: 34px; display: block; border-radius: 50%;
+  filter: drop-shadow(0 0 9px rgba(183, 155, 255, 0.65));
+}
+/* the big disco ball above "Welcome to the Router" */
+.discoball-big {
+  width: 112px; height: 112px; margin-bottom: 6px;
+  filter: drop-shadow(0 0 28px rgba(183, 155, 255, 0.6)) drop-shadow(0 0 8px rgba(124, 92, 255, 0.5));
+}
 .dot {
   width: 9px; height: 9px; border-radius: 50%;
   background: var(--accent);
@@ -91,10 +103,10 @@ html, body {
 .ssh-saved-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; background: rgba(0,0,0,0.18); border-radius: 8px; padding: 5px 8px 5px 10px; }
 .ssh-saved-name { font-family: ui-monospace, Menlo, monospace; font-size: 11.5px; color: var(--ink-dim); word-break: break-all; }
 .ssh-saved-rm { background: none; border: none; color: var(--ink-faint); font-size: 16px; line-height: 1; cursor: pointer; padding: 0 4px; }
-.ssh-saved-rm:hover { color: #ff9b9b; }
+.ssh-saved-rm:hover { color: var(--err); }
 .pill-peer { border-color: rgba(183,155,255,0.4); color: var(--accent); }
 .link-status { font-size: 12.5px; color: var(--ink-dim); }
-.link-err { font-size: 12px; color: #ff9b9b; }
+.link-err { font-size: 12px; color: var(--err); }
 .link-actions2 { display: flex; gap: 8px; }
 .link-result { font-size: 12px; color: var(--ink-dim); line-height: 1.5; white-space: pre-wrap; max-height: 160px; overflow-y: auto; background: rgba(0,0,0,0.15); border-radius: 8px; padding: 8px 10px; }
 .link-result:empty { display: none; }
@@ -253,7 +265,7 @@ html, body {
 .connect-handle { display: flex; align-items: center; gap: 6px; background: rgba(0,0,0,0.18); border: 1px solid var(--card-line); border-radius: 10px; padding: 0 12px; }
 .connect-handle .at { color: var(--ink-faint); font-size: 16px; }
 .connect-handle .fb-input { text-align: left; flex: 1; border: none; background: transparent; padding: 11px 0; }
-.connect-err { color: #ff9b9b; font-size: 12.5px; line-height: 1.4; }
+.connect-err { color: var(--err); font-size: 12.5px; line-height: 1.4; }
 
 /* interview (first run) — one question at a time */
 .interview { display: flex; flex-direction: column; padding: 20px 22px; transition: background 0.4s ease, border-color 0.4s ease; }
@@ -275,7 +287,7 @@ html, body {
 .iv-speak:hover { filter: brightness(1.08); }
 .iv-speak:active { transform: translateY(1px); }
 .iv-speak.recording {
-  background: rgba(255, 90, 90, 0.16); color: #ff9b9b;
+  background: var(--err-soft); color: var(--err);
   box-shadow: 0 0 0 1px rgba(255, 120, 120, 0.5), 0 0 34px rgba(255, 90, 90, 0.28);
 }
 .iv-speak:disabled { opacity: 0.75; cursor: default; }
@@ -307,12 +319,6 @@ body.recording .iv-actions { border-top-color: transparent; }
   margin-top: 16px; padding-top: 14px; border-top: 1px solid var(--card-line);
 }
 .iv-right { display: flex; gap: 10px; align-items: center; }
-.iv-mic.recording {
-  color: #ff8b8b; border-color: rgba(255,120,120,0.5);
-  background: rgba(255,90,90,0.12);
-  animation: pulse 1.2s ease-in-out infinite;
-}
-@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.55; } }
 
 /* quiet-day banner — inline and recessed, not a card */
 .quiet-banner {
@@ -393,41 +399,7 @@ body.recording .iv-actions { border-top-color: transparent; }
 }
 .refine-cta:hover { color: var(--ink); text-shadow: 0 0 12px rgba(183,155,255,0.5); }
 
-.head-actions { display: flex; gap: 14px; -webkit-app-region: no-drag; }
-
-/* floating footnote tooltip */
-.fntip {
-  position: fixed; z-index: 50; max-width: 340px;
-  background: #1c1636; border: 1px solid rgba(183,155,255,0.3);
-  border-radius: 12px; padding: 11px 13px;
-  box-shadow: 0 12px 40px -8px rgba(0,0,0,0.6);
-  pointer-events: none;
-}
-.fntip .t-head { color: var(--accent); font-size: 12.5px; font-weight: 650; margin-bottom: 5px; }
-.fntip .t-quote { font-family: var(--serif); font-style: italic; color: var(--ink); font-size: 14px; line-height: 1.4; }
-.fntip .t-ex {
-  margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--card-line);
-  color: var(--ink-faint); font-size: 11.5px; line-height: 1.45;
-}
-
-/* feedback box */
-.feedback { margin-top: 14px; }
-.fb-head {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 6px;
-}
-.fb-head label {
-  font-size: 11px; letter-spacing: 0.8px; text-transform: uppercase;
-  color: var(--ink-faint); font-weight: 600;
-}
-.fb-prefs {
-  font-size: 11px; color: var(--accent);
-  background: rgba(124, 92, 255, 0.12);
-  border: 1px solid rgba(124, 92, 255, 0.25);
-  padding: 2px 9px; border-radius: 999px; -webkit-app-region: no-drag;
-}
-.fb-prefs:hover { color: #fff; }
-.fb-row { display: flex; gap: 9px; align-items: stretch; }
+/* feedback input (reused by connect + scope) */
 .fb-input {
   flex: 1; resize: none; box-sizing: border-box;
   background: rgba(0,0,0,0.18); border: 1px solid var(--card-line);
@@ -437,7 +409,6 @@ body.recording .iv-actions { border-top-color: transparent; }
 }
 .fb-input:focus { border-color: rgba(183,155,255,0.4); }
 .fb-input::placeholder { color: var(--ink-faint); }
-.fb-btn { align-self: stretch; white-space: nowrap; padding: 9px 14px; }
 
 .meta-row {
   margin-top: 16px; padding-top: 14px;
@@ -483,10 +454,6 @@ body.recording .iv-actions { border-top-color: transparent; }
   padding: 0; transition: color 0.15s;
 }
 .actions .link:hover { color: var(--ink-dim); }
-/* the single quiet accent besides the primary Post button */
-.actions .improve { color: var(--accent); font-size: 12.5px; font-weight: 600; }
-.actions .improve:hover { color: var(--ink); text-shadow: 0 0 10px rgba(183,155,255,0.4); }
-
 .btn {
   -webkit-app-region: no-drag;
   font-family: var(--sans); font-size: 14px; font-weight: 550;
@@ -506,6 +473,13 @@ body.recording .iv-actions { border-top-color: transparent; }
 }
 .btn.primary:hover { filter: brightness(1.08); }
 .btn:disabled { opacity: 0.5; cursor: default; transform: none; }
+
+/* ── keyboard-only focus ring (WCAG 2.4.7) — reuses --accent, mouse look
+   untouched. Text inputs already tint a border, so suppress the ring there. ── */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn:focus-visible { outline-offset: 3px; }
+.scope-row:focus-within { background: rgba(255, 255, 255, 0.05); }
+.fb-input:focus-visible, .link-code:focus-visible { outline: none; }
 
 /* ── thinking: a live token counter as the model works ── */
 .think-stream {
@@ -585,14 +559,6 @@ body.recording .iv-actions { border-top-color: transparent; }
 .scope-manifest .sm-cloud {
   margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--card-line);
   font-size: 11.5px; color: var(--ink-faint); line-height: 1.5;
-}
-
-/* trust line above the footer — fine print, one compact line, de-emphasized so
-   it reads as a quiet caveat rather than a fourth competing block */
-.trust-line {
-  font-size: 11.5px; color: var(--ink-faint);
-  line-height: 1.45; margin-top: 10px; padding-top: 10px;
-  border-top: 1px solid var(--card-line);
 }
 
 /* "about to leave" inline confirm on the footer (the one amber moment) */
@@ -732,13 +698,6 @@ body.recording .iv-actions { border-top-color: transparent; }
 .rdx.rdx-suggested { border-bottom: 1px dashed var(--ink-faint); color: var(--ink-dim); }
 .rdx:hover { filter: brightness(1.15); }
 
-/* redaction tooltip extends .fntip */
-.fntip .t-reveal {
-  margin-top: 7px; padding-top: 7px; border-top: 1px solid var(--card-line);
-  font-size: 11.5px; color: var(--accent);
-}
-.fntip .t-reveal .t-link { color: var(--accent); cursor: pointer; }
-.fntip .t-clear { font-family: ui-monospace, Menlo, monospace; font-size: 12px; color: var(--ink); }
 .rdx-tip { pointer-events: auto; }
 
 /* undo toast (exclusions / rule-adds only) */
@@ -754,3 +713,68 @@ body.recording .iv-actions { border-top-color: transparent; }
 }
 .toast .toast-undo { font-size: 12.5px; color: var(--accent); cursor: pointer; background: none; border: none; -webkit-app-region: no-drag; }
 .toast .toast-undo:hover { color: #fff; }
+
+/* ════════════════════════════════════════════════════════════════════════
+   CRT flicker treatment — scanlines, vignette, phosphor bloom, roll + flicker.
+   All overlays are pointer-events:none so the app stays fully interactive.
+   ════════════════════════════════════════════════════════════════════════ */
+
+/* phosphor bloom on all text + a gentle whole-screen flicker/brightness pulse */
+.shell {
+  text-shadow: 0 0 4px rgba(183, 155, 255, 0.45), 0 0 14px rgba(124, 92, 255, 0.18);
+  animation: crt-flicker 0.15s steps(2, end) infinite, crt-breathe 5.5s ease-in-out infinite;
+}
+@keyframes crt-flicker {
+  0%   { opacity: 1; }
+  50%  { opacity: 0.975; }
+  100% { opacity: 0.99; }
+}
+@keyframes crt-breathe {
+  0%, 100% { filter: brightness(1) saturate(1.04); }
+  50%      { filter: brightness(1.045) saturate(1.12); }
+}
+
+/* horizontal scanlines */
+body::before {
+  content: ""; position: fixed; inset: 0; z-index: 60; pointer-events: none;
+  background: linear-gradient(rgba(0, 0, 0, 0) 50%, rgba(0, 0, 0, 0.26) 50%);
+  background-size: 100% 3px;
+  mix-blend-mode: multiply;
+  opacity: 0.75;
+}
+
+/* vignette / screen curvature + a faint fast flicker of the whole tube */
+body::after {
+  content: ""; position: fixed; inset: 0; z-index: 61; pointer-events: none;
+  background:
+    radial-gradient(135% 125% at 50% 50%, transparent 52%, rgba(0, 0, 0, 0.30) 78%, rgba(0, 0, 0, 0.62) 100%);
+  animation: crt-tube 0.11s steps(3, end) infinite;
+}
+@keyframes crt-tube {
+  0%   { opacity: 0.9; }
+  40%  { opacity: 1; }
+  70%  { opacity: 0.94; }
+  100% { opacity: 0.98; }
+}
+
+/* slow bright bar rolling down the tube */
+.shell::before {
+  content: ""; position: fixed; left: 0; right: 0; top: -34%; height: 34%;
+  z-index: 59; pointer-events: none;
+  background: linear-gradient(to bottom,
+    rgba(255, 255, 255, 0) 0%,
+    rgba(200, 180, 255, 0.06) 50%,
+    rgba(255, 255, 255, 0) 100%);
+  animation: crt-roll 7.5s linear infinite;
+}
+@keyframes crt-roll {
+  0%   { top: -34%; }
+  100% { top: 100%; }
+}
+
+/* the brand dot reads as a power LED — give it a steadier glow */
+.dot { animation: crt-led 2.4s ease-in-out infinite; }
+@keyframes crt-led {
+  0%, 100% { box-shadow: 0 0 14px 2px rgba(183, 155, 255, 0.7); }
+  50%      { box-shadow: 0 0 18px 4px rgba(183, 155, 255, 0.95); }
+}

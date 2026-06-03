@@ -2,8 +2,59 @@
 
 const $ = (id) => document.getElementById(id);
 
+// ── a tiny faux-3D disco ball: facets projected on a sphere, depth-sorted,
+// sparkling, spinning forever. Lives in the header, so it's on every page. ──
+function startDiscoBall(canvas) {
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  const DPR = Math.min(window.devicePixelRatio || 1, 2);
+  const S = canvas.clientWidth || 34;
+  canvas.width = S * DPR; canvas.height = S * DPR; ctx.scale(DPR, DPR);
+  const cx = S / 2, cy = S / 2, R = S * 0.40, ROWS = 13, TILT = 0.34, dh = Math.PI / ROWS;
+  const facets = [];
+  for (let i = 0; i < ROWS; i++) {
+    const lat = -Math.PI / 2 + Math.PI * (i + 0.5) / ROWS;
+    const cols = Math.max(3, Math.round(Math.cos(lat) * ROWS * 2.2));
+    for (let j = 0; j < cols; j++) {
+      facets.push({ lat, lon: 2 * Math.PI * (j + 0.5) / cols, ph: Math.random() * 6.283, dw: 2 * Math.PI / cols });
+    }
+  }
+  let t = 0;
+  function frame() {
+    t += 0.011;
+    ctx.clearRect(0, 0, S, S);
+    // solid sphere base so gaps between tiles read as a ball
+    const g = ctx.createRadialGradient(cx - R * 0.35, cy - R * 0.35, R * 0.15, cx, cy, R);
+    g.addColorStop(0, 'rgba(150,135,205,0.6)'); g.addColorStop(1, 'rgba(36,26,66,0.55)');
+    ctx.beginPath(); ctx.arc(cx, cy, R, 0, 6.2832); ctx.fillStyle = g; ctx.fill();
+    const vis = [];
+    for (const f of facets) {
+      const cl = Math.cos(f.lat), sl = Math.sin(f.lat);
+      const x0 = cl * Math.cos(f.lon + t), y0 = sl, z0 = cl * Math.sin(f.lon + t);
+      const y = y0 * Math.cos(TILT) - z0 * Math.sin(TILT);
+      const z = y0 * Math.sin(TILT) + z0 * Math.cos(TILT);
+      if (z < 0) continue; // cull the back hemisphere
+      vis.push({ x: x0, y, z, cl, ph: f.ph, dw: f.dw });
+    }
+    vis.sort((a, b) => a.z - b.z);
+    for (const d of vis) {
+      const px = cx + d.x * R, py = cy - d.y * R;
+      const fw = Math.max(1.1, R * d.dw * d.cl * 0.92), fh = Math.max(1.1, R * dh * 0.92);
+      const spark = 0.5 + 0.5 * Math.sin(t * 7 + d.ph * 4);
+      const b = Math.min(1, 0.28 + 0.4 * d.z + 0.65 * spark * d.z * d.z);
+      const r = Math.round(150 + 105 * b), gg = Math.round(128 + 112 * b), bl = Math.round(205 + 50 * b);
+      ctx.fillStyle = `rgba(${r},${gg},${bl},${0.5 + 0.5 * d.z})`;
+      ctx.fillRect(px - fw / 2, py - fh / 2, fw, fh);
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+}
+
 const els = {
   date: $('date'),
+  discoball: $('discoball'),
+  discoballWelcome: $('discoball-welcome'),
   stats: $('stats'),
   sProjects: $('s-projects'),
   sMessages: $('s-messages'),
@@ -100,6 +151,7 @@ const els = {
 let ctx = { digest: '', name: 'James', dateLabel: 'today', server: '' };
 let cur = { text: '', generated: '', fnMap: {}, editing: false };
 let mode = 'digest';            // 'digest' | 'intro'
+let welcomeBallOn = false;      // start the big welcome disco ball only once
 
 // last scope:preview for the day — chips/counts bind to its postFindings (I2).
 let preview = null;             // { post, headline, postFindings, readFiles, excludedCount, held }
@@ -118,6 +170,7 @@ function setView(view) {
     els[k].hidden = k !== view;
   }
   els.actions.hidden = view !== 'reflect';
+  els.stats.hidden = view !== 'reflect';
   const card = els[view];
   if (card) { card.classList.remove('fade'); void card.offsetWidth; card.classList.add('fade'); }
 }
@@ -295,6 +348,8 @@ function showWelcome() {
     'The Router is the cohort’s shared notebook — a live feed where the builders around you post what they’re making, wrestling with, and looking for. You’ll answer a few questions about your work, and they become an introduction you approve before anything posts.';
   els.welcomeBody.innerHTML = '<span class="shimmer">reading your work…</span>';
   setView('welcome');
+  // start the big welcome disco ball once the card is visible (sized)
+  if (!welcomeBallOn) { welcomeBallOn = true; requestAnimationFrame(() => startDiscoBall(els.discoballWelcome)); }
   window.daybook.welcomeMessage()
     .then((r) => { els.welcomeBody.textContent = (r && r.message) ? r.message : fallback; })
     .catch(() => { els.welcomeBody.textContent = fallback; });
@@ -647,7 +702,6 @@ async function run() {
   els.sProjects.textContent = stats.projectCount;
   els.sMessages.textContent = stats.messageCount;
   els.sFiles.textContent = stats.fileCount;
-  els.stats.hidden = false;
   els.postingAs.innerHTML = `posting to <b>${hostLabel(server)}</b>`;
 
   els.projlist.innerHTML = '';
@@ -683,7 +737,7 @@ function showEmpty(collected) {
     els.emptyOpenScope.hidden = false;
   } else {
     els.emptyStatus.textContent = 'No new Claude or Codex activity since your last post — yet.';
-    els.emptySub.textContent = 'Come back after you’ve done some work and I’ll have a reflection ready.';
+    els.emptySub.textContent = 'Come back after some work and the Router will have a reflection ready.';
     els.emptyOpenScope.hidden = true;
   }
   setView('empty');
@@ -757,6 +811,7 @@ els.post.addEventListener('click', () => {
 
 els.connectJoin.addEventListener('click', doJoin);
 els.connectHandle.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
+els.connectInvite.addEventListener('keydown', (e) => { if (e.key === 'Enter') doJoin(); });
 els.welcomeBegin.addEventListener('click', startInterview);
 els.welcomeSkip.addEventListener('click', async () => { await window.daybook.markIntroduced(); run(); });
 els.ivNext.addEventListener('click', ivNext);
@@ -920,6 +975,7 @@ async function renderSavedPeers() {
     const rm = document.createElement('button');
     rm.className = 'ssh-saved-rm';
     rm.title = 'Stop including this machine';
+    rm.setAttribute('aria-label', 'Stop including ' + p.target);
     rm.textContent = '×';
     rm.addEventListener('click', async () => { await window.daybook.linkPeerRemove(p.target); renderSavedPeers(); });
     row.appendChild(name); row.appendChild(rm);
@@ -930,10 +986,10 @@ async function showLink() {
   setView('link');
   renderSavedPeers();
   const st = await window.daybook.linkStatus();
-  if (st.host && st.host.running) { els.hostCode.value = st.host.code; els.hostStatus.textContent = `${st.host.peers} peer(s) connected`; els.hostIdle.hidden = true; els.hostActive.hidden = false; }
+  if (st.host && st.host.running) { els.hostCode.value = st.host.code; els.hostStatus.textContent = `${st.host.peers} peer${st.host.peers === 1 ? '' : 's'} connected`; els.hostIdle.hidden = true; els.hostActive.hidden = false; }
   else { els.hostIdle.hidden = false; els.hostActive.hidden = true; }
   if (st.sshConnected) { peerMode = 'ssh'; els.peerIdle.hidden = true; els.peerActive.hidden = false; els.peerStatus.textContent = `Connected over SSH · ${st.sshTarget || ''}`; }
-  else if (st.peerConnected) { peerMode = 'code'; els.peerIdle.hidden = true; els.peerActive.hidden = false; els.peerStatus.textContent = 'Connected to peer.'; }
+  else if (st.peerConnected) { peerMode = 'code'; els.peerIdle.hidden = true; els.peerActive.hidden = false; els.peerStatus.textContent = 'Connected to this machine.'; }
   else { els.peerIdle.hidden = false; els.peerActive.hidden = true; setPeerMode(peerMode); }
 }
 els.tabCode.addEventListener('click', () => setPeerMode('code'));
@@ -947,10 +1003,10 @@ els.hostStart.addEventListener('click', async () => {
   els.hostStart.disabled = false;
   if (!info) { els.hostStatus.textContent = 'Could not start sharing.'; return; }
   els.hostCode.value = info.code;
-  els.hostStatus.textContent = `${info.peers} peer(s) connected · ${info.ip}:${info.port}`;
+  els.hostStatus.textContent = `${info.peers} peer${info.peers === 1 ? '' : 's'} connected · ${info.ip}:${info.port}`;
   els.hostIdle.hidden = true; els.hostActive.hidden = false;
   if (linkHostUnsub) linkHostUnsub();
-  linkHostUnsub = window.daybook.onLinkHostChanged((i) => { if (i) els.hostStatus.textContent = `${i.peers} peer(s) connected · ${i.ip}:${i.port}`; });
+  linkHostUnsub = window.daybook.onLinkHostChanged((i) => { if (i) els.hostStatus.textContent = `${i.peers} peer${i.peers === 1 ? '' : 's'} connected · ${i.ip}:${i.port}`; });
 });
 els.hostStop.addEventListener('click', async () => { await window.daybook.linkHostStop(); if (linkHostUnsub) { linkHostUnsub(); linkHostUnsub = null; } els.hostIdle.hidden = false; els.hostActive.hidden = true; });
 els.hostCode.addEventListener('focus', () => els.hostCode.select());
@@ -964,7 +1020,7 @@ els.peerConnect.addEventListener('click', async () => {
     await window.daybook.linkConnect(code);
     peerMode = 'code';
     els.peerIdle.hidden = true; els.peerActive.hidden = false; els.peerResult.textContent = '';
-    els.peerStatus.textContent = 'Connected to peer.';
+    els.peerStatus.textContent = 'Connected to this machine.';
   } catch (e) { els.peerErr.textContent = e.message || String(e); els.peerErr.hidden = false; }
   finally { els.peerConnect.disabled = false; els.peerConnect.textContent = 'Connect →'; }
 });
@@ -1010,4 +1066,5 @@ els.peerDisconnect.addEventListener('click', async () => {
 els.retry.addEventListener('click', boot);
 els.openFeed.addEventListener('click', () => window.daybook.openFeed(ctx.server));
 
+startDiscoBall(els.discoball);
 boot();
