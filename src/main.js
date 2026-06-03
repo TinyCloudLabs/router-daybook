@@ -12,7 +12,7 @@ const { collectToday, collectSinceLastPost, collectRecent, collectMostRecentDay,
 const { generate, extractPatterns } = require('./reflect');
 const scopeMod = require('./scope');
 const { redact } = require('./redact');
-const { post, fetchFeed, cohortFeed, lastOwnPostMs, whoami, loadConfig, hasConfig, joinWithInvite, DEFAULT_SERVER } = require('./router');
+const { post, fetchFeed, cohortFeed, lastOwnPostMs, postStreak, whoami, loadConfig, hasConfig, joinWithInvite, DEFAULT_SERVER } = require('./router');
 const learning = require('./preferences');
 const intro = require('./intro');
 const link = require('./link');
@@ -429,6 +429,11 @@ ipcMain.handle('open-feed', async (_evt, server) => {
 // The in-app cohort feed: your posts + the room's, newest first (see
 // router.cohortFeed). Read-only; the renderer marks your own.
 ipcMain.handle('feed:get', async (_evt, opts = {}) => cohortFeed(opts || {}));
+
+// Your current posting streak (consecutive days you posted to the Router).
+ipcMain.handle('streak:get', async () => {
+  try { return { streak: await postStreak() }; } catch { return { streak: 0 }; }
+});
 
 // ══════════════════════════════════════════════════════════════════════════
 // Scope + redaction (Invariants I1–I5). main.js owns ONLY the IPC wiring; the

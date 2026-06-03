@@ -139,6 +139,56 @@ async function lastOwnPostMs({ limit = 200 } = {}) {
   return latest;
 }
 
+// Local YYYY-MM-DD for an epoch-ms timestamp (the day the post belongs to).
+function localDay(ms) {
+  const d = new Date(ms);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+}
+
+// Your current posting streak: consecutive local days you posted to the Router,
+// ending today (or yesterday — the streak stays "alive" until a full day is
+// missed). 0 if you broke it or have never posted. Reads the SAME /api/entries
+// your-own posts that lastOwnPostMs uses. Best-effort; 0 on any failure.
+async function postStreak({ limit = 200 } = {}) {
+  let key, server;
+  try { ({ key, server } = loadConfig()); } catch { return 0; }
+  let res;
+  try { res = await fetch(`${server}/api/entries?key=${encodeURIComponent(key)}&limit=${limit}`); }
+  catch { return 0; }
+  if (!res.ok) return 0;
+  let body;
+  try { body = JSON.parse(await res.text()); } catch { return 0; }
+
+  const me = await whoami();
+  const myHandle = me?.handle || null;
+  const myPseudonym = me?.pseudonym || null;
+  if (!myHandle && !myPseudonym) return 0;
+
+  const raw = Array.isArray(body) ? body : (body.entries || []);
+  const days = new Set();
+  for (const e of raw) {
+    if (!e) continue;
+    const mine = (myHandle && e.handle === myHandle) || (myPseudonym && e.pseudonym === myPseudonym);
+    if (!mine) continue;
+    const ts = e.timestamp;
+    if (typeof ts === 'number' && isFinite(ts)) days.add(localDay(ts));
+  }
+  if (!days.size) return 0;
+
+  // Count back from today; if nothing today, allow yesterday so the streak
+  // doesn't "break" mid-day. Step by calendar day at noon to dodge DST.
+  const d = new Date();
+  d.setHours(12, 0, 0, 0);
+  if (!days.has(localDay(d.getTime()))) {
+    d.setDate(d.getDate() - 1);
+    if (!days.has(localDay(d.getTime()))) return 0;
+  }
+  let streak = 0;
+  while (days.has(localDay(d.getTime()))) { streak++; d.setDate(d.getDate() - 1); }
+  return streak;
+}
+
 // The cohort feed for in-app display: YOUR posts AND everyone else's, newest
 // first, each tagged `mine` so the UI can mark your own. Unlike fetchFeed (which
 // drops your posts because you don't collaborate with yourself), this keeps them
@@ -252,4 +302,4 @@ async function post(content) {
   };
 }
 
-module.exports = { post, fetchFeed, cohortFeed, lastOwnPostMs, whoami, loadConfig, hasConfig, saveConfig, joinWithInvite, DEFAULT_SERVER };
+module.exports = { post, fetchFeed, cohortFeed, lastOwnPostMs, postStreak, whoami, loadConfig, hasConfig, saveConfig, joinWithInvite, DEFAULT_SERVER };
