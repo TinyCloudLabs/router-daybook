@@ -9,3 +9,12 @@ dist/
 # personal interview transcripts — your own reflections, not code. Delete this
 # line if you deliberately want them version-controlled.
 interviews/
+
+# secrets / local state — these live in ~ (home), NEVER the repo. Ignored
+# defensively in case a copy ever lands in the project folder.
+.routerrc
+.router-daybook/
+.env
+.env.*
+*.key
+*.pem
