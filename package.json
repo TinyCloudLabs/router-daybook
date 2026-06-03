@@ -1,6 +1,6 @@
 {
   "name": "router",
-  "productName": "Router",
+  "productName": "Teleport Router",
   "version": "0.0.1",
   "description": "Review your Claude + Codex work and post it to the Router cohort feed — all on your machine, on your Claude subscription.",
   "main": "src/main.js",

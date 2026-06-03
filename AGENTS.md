@@ -1,12 +1,16 @@
-# AGENTS.md — working notes for agents on Daybook (Teleport Router)
+# AGENTS.md — working notes for agents on Teleport Router (repo: `router-daybook`)
 
 Guidance for AI agents (and humans) working in this repo. Read this before making
 changes; it records *why* things are the way they are so you don't undo deliberate
 decisions. See `README.md` for the user-facing tour.
 
+It is **not** a standalone product — it's the **desktop interface to the Router**, and
+ultimately the front end for [`router-teamwork`](https://github.com/teleport-computer/router-teamwork).
+"Daybook" is just the repo codename; the product is **Teleport Router**.
+
 ## What this is
 
-**Daybook** (Electron desktop app; package name `router`, productName **Teleport Router**)
+**Teleport Router** (Electron desktop app; package name `router`, repo `router-daybook`)
 reads your local **Claude Code** (`~/.claude/projects/*/*.jsonl`) and **Codex**
 (`~/.codex/sessions/...`) sessions, writes a first-person daily reflection via the local
 `claude -p` CLI, and — only when you approve — posts it to the **Router**, a cohort's

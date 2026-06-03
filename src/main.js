@@ -1,7 +1,7 @@
 'use strict';
 
 const { app, BrowserWindow, ipcMain, shell, nativeImage } = require('electron');
-app.setName('Router');
+app.setName('Teleport Router');
 const path = require('path');
 const fs = require('fs');
 const os = require('os');
@@ -41,7 +41,7 @@ function createWindow() {
     height: 880,
     minWidth: 560,
     minHeight: 640,
-    title: 'Router',
+    title: 'Teleport Router',
     backgroundColor: '#0e0b1a',
     titleBarStyle: 'hiddenInset',
     webPreferences: {

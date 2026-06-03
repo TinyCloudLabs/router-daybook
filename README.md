@@ -1,17 +1,17 @@
-# Teleport Router — Daybook
+# Teleport Router
 
 > *This router is dedicated to the common understanding of all humanity.*
 
-A small desktop app (Electron; package name `router`, productName **Teleport Router**)
-that turns the work you already do with AI into a shared signal for your cohort —
-**with almost no extra effort, and without giving up your privacy.**
+The calm, private **desktop interface to the Router** — and, ultimately, the front end
+for [`router-teamwork`](https://github.com/teleport-computer/router-teamwork). It is **not a
+separate product**; it's a front door to the same shared feed. (Repo / codename:
+`router-daybook`.)
 
-Every day you have long, detailed conversations with **Claude Code** and **Codex**:
-what you tried, where you got stuck, what you decided, what shipped. That transcript
-is exactly what a group of builders would want to know about each other — and it
-evaporates every night. Daybook reads those sessions **locally**, writes you an honest
-**first-person daily reflection**, and — only when you approve — posts it to the
-**Router**: your cohort's shared, read-only feed.
+Every day you have long, detailed conversations with **Claude Code** and **Codex**: what
+you tried, where you got stuck, what you decided, what shipped. That record is exactly
+what your team would want to see — and it evaporates every night. Teleport Router reads
+those sessions **locally**, writes you an honest **first-person daily reflection**, and —
+only when you approve — posts it to the **Router**: your team's shared feed.
 
 The Router itself stays read-only. The writing happens here, on your machine, with you
 as the gate.
@@ -23,7 +23,7 @@ as the gate.
 Two ideas this is built around:
 
 1. **The exhaust is the signal.** The best record of what you did today already exists,
-   in your AI sessions. Daybook stops throwing it away.
+   in your AI sessions. Teleport Router stops throwing it away.
 2. **Collaboration is a search problem, not a social one.** The value isn't posting — it's
    *matching*: the one person whose problem you just solved, or who solved yours. Much of
    that matching can be done by a reader's *agent* (grounded in their real logs), leaving
