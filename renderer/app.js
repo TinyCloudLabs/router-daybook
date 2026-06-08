@@ -128,6 +128,8 @@ const els = {
   openScope: $('open-scope'),
   scope: $('scope'),
   scopeBack: $('scope-back'),
+  scopeAddFolder: $('scope-add-folder'),
+  scopeNote: $('scope-note'),
   scopeList: $('scope-list'),
   scopeSave: $('scope-save'),
   openLink: $('open-link'),
@@ -881,21 +883,29 @@ async function showScope(returnTo) {
   renderScopeManager();
 }
 
-// One flat, alphabetical list of every repo with recent activity. A checkbox
-// per repo = in scope or not. That's the whole control surface.
+// One flat, alphabetical list of active repos plus pinned folders. A checkbox
+// per path = in scope or not.
 function renderScopeManager() {
   const s = scopeState || { included: [], excluded: [], newRepos: [] };
-  const rows = []
-    .concat((s.included || []).map((r) => ({ r, included: true })))
-    .concat((s.newRepos || []).map((r) => ({ r, included: false })))
-    .concat((s.excluded || []).map((r) => ({ r, included: false })));
+  const rows = [];
+  const seen = new Set();
+  const addRows = (items, included) => {
+    for (const r of (items || [])) {
+      if (!r || !r.fullPath || seen.has(r.fullPath)) continue;
+      seen.add(r.fullPath);
+      rows.push({ r, included });
+    }
+  };
+  addRows(s.included, true);
+  addRows(s.newRepos, false);
+  addRows(s.excluded, false);
   rows.sort((a, b) => (a.r.label || '').localeCompare(b.r.label || ''));
 
   els.scopeList.innerHTML = '';
   if (!rows.length) {
     const empty = document.createElement('div');
     empty.className = 'scope-empty';
-    empty.textContent = 'No repos with recent activity yet.';
+    empty.textContent = 'No folders in scope or recent activity yet.';
     els.scopeList.appendChild(empty);
     return;
   }
@@ -920,16 +930,56 @@ function repoRow(r, included) {
   });
   const text = document.createElement('span');
   text.className = 'sx-text';
-  text.innerHTML =
-    `<span class="sx-name">${escapeHtml(r.label)}</span>` +
-    `<span class="sx-path">${escapeHtml(r.fullPath)}</span>`;
+  const name = document.createElement('span');
+  name.className = 'sx-name';
+  name.textContent = r.label || r.fullPath || 'folder';
+  const fullPath = document.createElement('span');
+  fullPath.className = 'sx-path';
+  fullPath.textContent = r.fullPath || '';
+  text.appendChild(name);
+  text.appendChild(fullPath);
+  const caption = scopeRowCaption(r, included);
+  if (caption) {
+    const note = document.createElement('span');
+    note.className = 'sx-caption';
+    note.textContent = caption;
+    text.appendChild(note);
+  }
   row.appendChild(cb);
   row.appendChild(text);
   return row;
 }
 
+function scopeRowCaption(r, included) {
+  if (r && r.pinned && !(r.lastActive > 0)) {
+    return included ? 'Pinned in scope; no sessions today.' : 'Pinned out of scope; no sessions today.';
+  }
+  if (r && r.pinned) return included ? 'Pinned in scope.' : 'Pinned out of scope.';
+  if (r && r.reason === 'default-deny') return 'New; out by default.';
+  return '';
+}
+
 els.openScope.addEventListener('click', () => showScope('reflect'));
 els.scopeBack.addEventListener('click', () => setView(scopeReturnView));
+els.scopeAddFolder.addEventListener('click', async () => {
+  const oldText = els.scopeAddFolder.textContent;
+  els.scopeAddFolder.disabled = true;
+  els.scopeAddFolder.textContent = 'Choosing...';
+  if (els.scopeNote) els.scopeNote.textContent = '';
+  try {
+    const res = await window.daybook.scopePickFolder();
+    if (res && !res.canceled) {
+      scopeState = res;
+      renderScopeManager();
+      if (els.scopeNote) els.scopeNote.textContent = `Added ${res.added && res.added.label ? res.added.label : 'folder'}.`;
+    }
+  } catch (e) {
+    if (els.scopeNote) els.scopeNote.textContent = e.message || String(e);
+  } finally {
+    els.scopeAddFolder.disabled = false;
+    els.scopeAddFolder.textContent = oldText;
+  }
+});
 els.scopeSave.addEventListener('click', () => setView(scopeReturnView));
 
 // ── cohort feed (#feed + inline on success) ─────────────────────────────────

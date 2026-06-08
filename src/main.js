@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, ipcMain, shell, nativeImage } = require('electron');
+const { app, BrowserWindow, ipcMain, shell, nativeImage, dialog } = require('electron');
 app.setName('Teleport Router');
 const path = require('path');
 const fs = require('fs');
@@ -577,7 +577,9 @@ async function buildScopeView(date = new Date()) {
   const startMs = dayStartMs(date);
   const byPath = await discoverCandidates(startMs, date);
 
-  const candidatePaths = [...byPath.keys()];
+  const overrides = (scope.overrides && typeof scope.overrides === 'object') ? scope.overrides : {};
+  const overridePaths = Object.keys(overrides).filter((fp) => typeof fp === 'string' && fp);
+  const candidatePaths = [...new Set([...byPath.keys(), ...overridePaths])];
   const activity = {};
   for (const [fp, e] of byPath) activity[fp] = e.mtimeMs;
 
@@ -591,7 +593,18 @@ async function buildScopeView(date = new Date()) {
     const d = built.decisions[fp] || { included: false, reason: 'default-deny', ruleId: null, isNew: true };
     const label = path.basename(fp) || fp;
     const e = byPath.get(fp);
-    if (newSet.has(fp)) newRepos.push({ fullPath: fp, label });
+    const pinned = Object.prototype.hasOwnProperty.call(overrides, fp);
+    if (newSet.has(fp)) {
+      newRepos.push({
+        fullPath: fp,
+        label,
+        convCount: e ? e.sessions.size : 0,
+        lastActive: e ? e.mtimeMs : 0,
+        reason: d.reason,
+        ruleId: d.ruleId || null,
+        pinned,
+      });
+    }
     if (d.included) {
       included.push({
         fullPath: fp,
@@ -600,9 +613,18 @@ async function buildScopeView(date = new Date()) {
         lastActive: e ? e.mtimeMs : 0,
         reason: d.reason,
         ruleId: d.ruleId || null,
+        pinned,
       });
     } else {
-      excluded.push({ fullPath: fp, label, reason: d.reason, ruleId: d.ruleId || null });
+      excluded.push({
+        fullPath: fp,
+        label,
+        convCount: e ? e.sessions.size : 0,
+        lastActive: e ? e.mtimeMs : 0,
+        reason: d.reason,
+        ruleId: d.ruleId || null,
+        pinned,
+      });
     }
   }
 
@@ -616,9 +638,9 @@ async function buildScopeView(date = new Date()) {
   if (inc === 0 && exc === 0) {
     summary = 'No project activity to read today.';
   } else {
-    const incPart = inc === 1 ? '1 repo' : `${inc} repos`;
+    const incPart = inc === 1 ? '1 folder allowed' : `${inc} folders allowed`;
     const excPart = exc === 0 ? 'nothing excluded' : (exc === 1 ? '1 repo excluded' : `${exc} repos excluded`);
-    summary = `Reading ${incPart} today; ${excPart}.`;
+    summary = `${incPart}; ${excPart}.`;
     if (newRepos.length) summary += ` ${newRepos.length} new repo${newRepos.length === 1 ? '' : 's'} out by default.`;
   }
 
@@ -634,6 +656,34 @@ async function buildScopeView(date = new Date()) {
 
 // scope:get — the current allow/deny picture for today.
 ipcMain.handle('scope:get', async () => buildScopeView());
+
+// scope:pickFolder — ask macOS for one local folder and pin it into scope.
+// This only grants Claude/Codex sessions rooted at that path; it does not crawl
+// repo files directly.
+ipcMain.handle('scope:pickFolder', async () => {
+  const opts = {
+    title: 'Add folder to Scope',
+    buttonLabel: 'Add folder',
+    defaultPath: HOME,
+    properties: ['openDirectory'],
+  };
+  const result = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
+  if (!result || result.canceled || !result.filePaths || !result.filePaths.length) {
+    return { canceled: true };
+  }
+
+  let fullPath = result.filePaths[0];
+  try { fullPath = fs.realpathSync(fullPath); }
+  catch { fullPath = path.resolve(fullPath); }
+
+  let stat;
+  try { stat = fs.statSync(fullPath); }
+  catch { throw new Error('That folder is not available.'); }
+  if (!stat.isDirectory()) throw new Error('Choose a folder, not a file.');
+
+  scopeMod.setOverride(fullPath, 'include');
+  return { ...(await buildScopeView()), added: { fullPath, label: path.basename(fullPath) || fullPath } };
+});
 
 // scope:setRule — add/edit a rule ({ rule }) or remove one ({ remove }), then
 // re-derive the scope view.
