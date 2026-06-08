@@ -891,8 +891,8 @@ async function showScope(returnTo) {
   renderScopeManager();
 }
 
-// One flat, alphabetical list of active repos plus pinned folders. A checkbox
-// per path = in scope or not.
+// One flat, alphabetical list of active repos plus manually added folders. A
+// checkbox per path = in scope or not.
 function renderScopeManager() {
   const s = scopeState || { included: [], excluded: [], newRepos: [] };
   const rows = [];
@@ -921,11 +921,13 @@ function renderScopeManager() {
 }
 
 // A repo row is a checkbox + name + path. Toggling writes an explicit
-// include/exclude override (which wins over everything). No live re-render, so
-// the row doesn't jump as you click; the next open reloads fresh.
+// include/exclude override (which wins over everything). Manual choices can be
+// unpinned, which clears the override and lets automatic rules decide again.
 function repoRow(r, included) {
-  const row = document.createElement('label');
+  const row = document.createElement('div');
   row.className = 'scope-row';
+  const main = document.createElement('label');
+  main.className = 'scope-row-main';
   const cb = document.createElement('input');
   cb.type = 'checkbox';
   cb.checked = included;
@@ -953,16 +955,37 @@ function repoRow(r, included) {
     note.textContent = caption;
     text.appendChild(note);
   }
-  row.appendChild(cb);
-  row.appendChild(text);
+  main.appendChild(cb);
+  main.appendChild(text);
+  row.appendChild(main);
+  if (r && r.pinned) {
+    const unpin = document.createElement('button');
+    unpin.type = 'button';
+    unpin.className = 'link scope-unpin';
+    unpin.textContent = 'unpin';
+    unpin.title = 'Clear the manual scope choice';
+    unpin.addEventListener('click', async () => {
+      unpin.disabled = true;
+      if (els.scopeNote) els.scopeNote.textContent = '';
+      try {
+        scopeState = await window.daybook.scopeOverride({ fullPath: r.fullPath, decision: null });
+        renderScopeManager();
+        if (els.scopeNote) els.scopeNote.textContent = `Cleared manual choice for ${r.label || 'folder'}.`;
+      } catch (e) {
+        unpin.disabled = false;
+        if (els.scopeNote) els.scopeNote.textContent = e.message || String(e);
+      }
+    });
+    row.appendChild(unpin);
+  }
   return row;
 }
 
 function scopeRowCaption(r, included) {
   if (r && r.pinned && !(r.lastActive > 0)) {
-    return included ? 'Pinned in scope; no sessions today.' : 'Pinned out of scope; no sessions today.';
+    return included ? 'Manually included; no sessions today.' : 'Manually excluded; no sessions today.';
   }
-  if (r && r.pinned) return included ? 'Pinned in scope.' : 'Pinned out of scope.';
+  if (r && r.pinned) return included ? 'Manually included.' : 'Manually excluded.';
   if (r && r.reason === 'default-deny') return 'New; out by default.';
   return '';
 }
