@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld('daybook', {
   bootstrap: () => ipcRenderer.invoke('bootstrap'),
   join: (payload) => ipcRenderer.invoke('join', payload),
   useKey: (payload) => ipcRenderer.invoke('use-key', payload),
+  settingsGet: () => ipcRenderer.invoke('settings:get'),
+  settingsSetName: (payload) => ipcRenderer.invoke('settings:setName', payload),
   welcomeMessage: () => ipcRenderer.invoke('welcome-message'),
   introStart: () => ipcRenderer.invoke('intro-start'),
   introNext: (payload) => ipcRenderer.invoke('intro-next', payload),

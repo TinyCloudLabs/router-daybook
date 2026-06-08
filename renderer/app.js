@@ -121,6 +121,13 @@ const els = {
   feed: $('feed'),
   feedBack: $('feed-back'),
   feedList: $('feed-list'),
+  openSettings: $('open-settings'),
+  settings: $('settings'),
+  settingsBack: $('settings-back'),
+  settingsName: $('settings-name'),
+  settingsEffective: $('settings-effective'),
+  settingsStatus: $('settings-status'),
+  settingsSave: $('settings-save'),
   actions: $('actions'),
   postingAs: $('posting-as'),
   skip: $('skip'),
@@ -163,7 +170,7 @@ const els = {
   sshSavedList: $('ssh-saved-list'),
 };
 
-let ctx = { digest: '', name: 'James', dateLabel: 'today', server: '' };
+let ctx = { digest: '', name: 'the author', dateLabel: 'today', server: '' };
 let cur = { text: '', generated: '', fnMap: {}, editing: false };
 let mode = 'digest';            // 'digest' | 'intro'
 let welcomeBallOn = false;      // start the big welcome disco ball only once
@@ -174,6 +181,7 @@ let findingById = {};           // postFindings keyed by id, for tooltips + loca
 let scopeState = null;          // last scope:get payload (for the #scope manager)
 let scopeReturnView = 'reflect';// where ← back returns to from #scope
 let feedReturnView = 'reflect'; // where ← back returns to from #feed
+let settingsReturnView = 'reflect'; // where ← back returns to from #settings
 
 const SUP = { '¹': 1, '²': 2, '³': 3, '⁴': 4, '⁵': 5, '⁶': 6, '⁷': 7, '⁸': 8, '⁹': 9 };
 
@@ -181,7 +189,7 @@ let _view = 'loading';
 const currentView = () => _view;
 function setView(view) {
   _view = view;
-  for (const k of ['connect', 'welcome', 'interview', 'loading', 'empty', 'error', 'reflect', 'success', 'link', 'scope', 'feed']) {
+  for (const k of ['connect', 'welcome', 'interview', 'loading', 'empty', 'error', 'reflect', 'success', 'link', 'scope', 'feed', 'settings']) {
     els[k].hidden = k !== view;
   }
   els.actions.hidden = view !== 'reflect';
@@ -300,7 +308,7 @@ async function boot() {
   els.loadingText.textContent = 'Getting set up…';
   let b;
   try { b = await window.daybook.bootstrap(); } catch (e) { return fail(e.message || String(e)); }
-  ctx.name = b.name || 'James';
+  ctx.name = b.name || 'the author';
   ctx.server = b.server || '';
   els.postingAs.innerHTML = `posting to <b>${hostLabel(b.server)}</b>`;
   if (!b.hasKey) return showConnect(); // no identity yet — join the Router first
@@ -734,7 +742,7 @@ async function run() {
   } catch (e) { return fail(e.message || String(e)); }
 
   const { stats, hasActivity, digest, name, server } = collected;
-  ctx = { digest, name: name || 'James', dateLabel: stats.date, server: server || '' };
+  ctx = { digest, name: name || 'the author', dateLabel: stats.date, server: server || '' };
 
   els.sProjects.textContent = stats.projectCount;
   els.sMessages.textContent = stats.messageCount;
@@ -1041,6 +1049,51 @@ async function showFeed(returnTo) {
 
 els.openFeedView.addEventListener('click', () => showFeed(currentView()));
 els.feedBack.addEventListener('click', () => setView(feedReturnView));
+
+// ── settings panel ─────────────────────────────────────────────────────────
+async function showSettings(returnTo) {
+  settingsReturnView = ['reflect', 'success', 'empty', 'feed', 'scope', 'link'].includes(returnTo) ? returnTo : 'reflect';
+  setView('settings');
+  els.settingsStatus.textContent = '';
+  els.settingsEffective.textContent = '';
+  try {
+    const s = await window.daybook.settingsGet();
+    els.settingsName.value = s.name || '';
+    els.settingsEffective.textContent = `Draft subject: ${s.effectiveName || 'the author'}`;
+  } catch (e) {
+    els.settingsStatus.textContent = e.message || String(e);
+  }
+  setTimeout(() => els.settingsName.focus(), 0);
+}
+
+async function saveSettings() {
+  const oldText = els.settingsSave.textContent;
+  els.settingsSave.disabled = true;
+  els.settingsSave.textContent = 'Saving...';
+  els.settingsStatus.textContent = '';
+  try {
+    const s = await window.daybook.settingsSetName({ name: els.settingsName.value });
+    ctx.name = s.effectiveName || 'the author';
+    els.settingsName.value = s.name || '';
+    els.settingsEffective.textContent = `Draft subject: ${ctx.name}`;
+    els.settingsStatus.textContent = s.name ? 'Saved.' : 'Name cleared.';
+  } catch (e) {
+    els.settingsStatus.textContent = e.message || String(e);
+  } finally {
+    els.settingsSave.disabled = false;
+    els.settingsSave.textContent = oldText;
+  }
+}
+
+els.openSettings.addEventListener('click', () => showSettings(currentView()));
+els.settingsBack.addEventListener('click', () => setView(settingsReturnView));
+els.settingsSave.addEventListener('click', saveSettings);
+els.settingsName.addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    saveSettings();
+  }
+});
 
 // ── device link panel ───────────────────────────────────────────────────────
 let linkHostUnsub = null;

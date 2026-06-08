@@ -16,23 +16,24 @@ const { post, fetchFeed, cohortFeed, lastOwnPostMs, postStreak, whoami, loadConf
 const learning = require('./preferences');
 const intro = require('./intro');
 const link = require('./link');
+const profile = require('./profile');
 
 let win;
 let session = {};  // last digest generation's inputs, reused for in-place revision
 let introCtx = {}; // onboarding context (history/projects/feed), reused across intro steps
 
-// Whose day is this? Third-person voice needs a first name.
-// The user's FIRST name — the intro and daily posts address them in the third
-// person ("James shipped…", never "James Barnes shipped…"). Sourced from
-// DAYBOOK_NAME or ~/.routerrc `name`; first token only; falls back to "James".
+// Whose day is this? Third-person voice needs a subject name.
+// The user's FIRST name is preferred, sourced from DAYBOOK_NAME, local Settings,
+// then ~/.routerrc `name`; first token only. If none is configured, stay neutral.
 function firstNameOf(s) { return String(s || '').trim().split(/\s+/)[0] || ''; }
 function resolveName() {
   let raw = process.env.DAYBOOK_NAME || '';
+  if (!raw) raw = profile.loadProfile().name || '';
   if (!raw) {
     try { raw = JSON.parse(fs.readFileSync(path.join(os.homedir(), '.routerrc'), 'utf8')).name || ''; }
     catch { /* ignore */ }
   }
-  return firstNameOf(raw) || 'James';
+  return firstNameOf(raw) || 'the author';
 }
 
 function createWindow() {
@@ -174,6 +175,16 @@ ipcMain.handle('bootstrap', async () => {
   try { server = loadConfig().server; } catch (e) { configError = e.message; }
   if (hasKey) { try { const who = await whoami(); handle = who && who.handle; } catch { /* offline */ } }
   return { hasKey, introduced: intro.isIntroduced(), name, handle, server, configError };
+});
+
+ipcMain.handle('settings:get', async () => {
+  const p = profile.loadProfile();
+  return { name: p.name || '', effectiveName: resolveName() };
+});
+
+ipcMain.handle('settings:setName', async (_evt, { name } = {}) => {
+  const p = profile.setName(name);
+  return { name: p.name || '', effectiveName: resolveName() };
 });
 
 // In-app "Connect to the Router": parse an invite link/code, join, save rc.
